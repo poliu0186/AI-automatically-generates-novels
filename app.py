@@ -6,11 +6,11 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # API Configurations
-API_ENDPOINT_1 = 'http://ssb.org.cn:10035/v1'
-API_KEY_1 = 'UgC44uW-z-fLNadND-fL81yBXYG3B2T9fIWHFuEnWAA'
+API_ENDPOINT_1 = 'https://open.bigmodel.cn/api/paas/v4/'
+API_KEY_1 = '7e680b473d4f40e58b5bae0fe43ee3ce.Q7sWfbxYQVFcjHUz'  # 请替换为您的智谱AI API Key
 
-API_ENDPOINT_2 = 'http://ssb.org.cn:10099/v1'
-API_KEY_2 = 'UgC44uW-z-fLNadND-fL81yBXYG3B2T9fIWHFuEnWAA'
+API_ENDPOINT_2 = 'https://open.bigmodel.cn/api/paas/v4/'
+API_KEY_2 = '7e680b473d4f40e58b5bae0fe43ee3ce.Q7sWfbxYQVFcjHUz'  # 请替换为您的智谱AI API Key
 
 # Initialize OpenAI clients
 client1 = OpenAI(
@@ -22,6 +22,10 @@ client2 = OpenAI(
     base_url=API_ENDPOINT_2,
     api_key=API_KEY_2
 )
+
+@app.route('/')
+def home():
+    return render_template('index.html')
 
 @app.route('/bingte')
 def index():
@@ -36,7 +40,7 @@ def generate():
     def generate_stream():
         try:
             completion = client1.chat.completions.create(
-                model="Claude-3.5-Sonnet",
+                model="glm-4.5-air",  # GLM-4.6v 视觉模型
                 messages=[{"role": "user", "content": prompt}],
                 stream=True
             )
@@ -63,7 +67,7 @@ def generate2():
     def generate_stream():
         try:
             completion = client2.chat.completions.create(
-                model="Qwen2.5-72B-I-128K",
+                model="glm-4.5-air",  # GLM-4 文本模型
                 messages=[{"role": "user", "content": prompt}],
                 stream=True
             )
