@@ -10,3 +10,9 @@ idna
 urllib3
 Jinja2
 python-dotenv
+python-docx
+reportlab
+openai
+Flask-Login
+Flask-SQLAlchemy
+psycopg2-binary

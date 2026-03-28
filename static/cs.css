@@ -21,12 +21,36 @@ body {
     color: var(--text-color);
 }
 
+.auth-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding: 14px 24px;
+    background: #f8f9fb;
+    border-bottom: 1px solid #e3e6ea;
+}
+
+.auth-status a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.auth-status a:hover {
+    text-decoration: underline;
+}
+
 .container {
     display: flex;
     padding: 15px;
     gap: 20px;
     max-width: 1200px;
     margin: 0 auto;
+    margin-top: 12px;
 }
 
 @media (max-width: 768px) {

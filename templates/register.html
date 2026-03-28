@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>注册 - 小说创作助手</title>
+    <link crossorigin="anonymous" media="all" rel="stylesheet" href="{{ url_for('static', filename='cs.css') }}" />
+    <style>
+        body { background: #f5f7fb; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .auth-wrapper { width: min(420px, 100%); padding: 28px; background: #fff; border-radius: 16px; box-shadow: 0 16px 40px rgba(0,0,0,0.08); }
+        .auth-wrapper h2 { margin: 0 0 18px; color: #222; }
+        .auth-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+        .auth-field label { color: #555; font-size: 14px; }
+        .auth-field input { width: 100%; padding: 12px 14px; border: 1px solid #dce2ea; border-radius: 10px; font-size: 14px; }
+        .auth-button { width: 100%; margin-top: 10px; }
+        .auth-footer { margin-top: 18px; color: #666; font-size: 14px; text-align: center; }
+        .auth-footer a { color: var(--primary-color); text-decoration: none; }
+        .message { margin-bottom: 14px; padding: 12px 14px; border-radius: 10px; font-size: 14px; }
+        .message.success { background: #eaf7ef; color: #257a35; }
+        .message.danger { background: #fdecea; color: #af2e2e; }
+    </style>
+</head>
+<body>
+    <div class="auth-wrapper">
+        <h2>注册小说创作助手</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="post">
+            <div class="auth-field">
+                <label for="username">用户名</label>
+                <input id="username" name="username" type="text" required autocomplete="username">
+            </div>
+            <div class="auth-field">
+                <label for="password">密码</label>
+                <input id="password" name="password" type="password" required autocomplete="new-password">
+            </div>
+            <div class="auth-field">
+                <label for="confirm_password">确认密码</label>
+                <input id="confirm_password" name="confirm_password" type="password" required autocomplete="new-password">
+            </div>
+            <button type="submit" class="primary-button auth-button">注册</button>
+        </form>
+
+        <div class="auth-footer">
+            已有账号？<a href="{{ url_for('auth.login') }}">立即登录</a>
+        </div>
+    </div>
+</body>
+</html>

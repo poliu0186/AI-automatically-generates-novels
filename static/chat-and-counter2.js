@@ -577,7 +577,8 @@ class ChatAssistant {
                               rows="3"></textarea>
                     <div class="button-group">
                         <button id="send-btn">发送</button>
-                        <button id="export-btn">导出</button>
+                        <button id="download-btn">下载小说</button>
+                        <button id="export-btn">导出记录</button>
                         <button id="clear-btn">清空</button>
                     </div>
                 </div>
@@ -613,6 +614,7 @@ bindEvents() {
         });
 
         // 其他按钮事件
+        document.getElementById('download-btn').addEventListener('click', () => this.downloadNovel());
         document.getElementById('clear-btn').addEventListener('click', () => this.clearConversation());
         document.getElementById('export-btn').addEventListener('click', () => this.exportConversation());
         
@@ -842,6 +844,116 @@ bindEvents() {
             URL.revokeObjectURL(url);
             this.showToast('对话记录已导出！');
         }, 100);
+    }
+
+    downloadNovel() {
+        // 获取所有章节的正文内容
+        const chapters = document.querySelectorAll('.chapter-container');
+        let novelContent = '';
+
+        console.log('找到的章节数量:', chapters.length);
+
+        chapters.forEach((chapter, index) => {
+            // 获取章节标题
+            const chapterHeader = chapter.querySelector('.chapter-header span:first-child');
+            const chapterTitle = chapterHeader ? chapterHeader.textContent.trim() : `第${index + 1}章`;
+
+            // 获取章节正文内容
+            const contentTextarea = chapter.querySelector('.chapter-content-text');
+            const chapterContent = contentTextarea ? contentTextarea.value.trim() : '';
+
+            console.log(`章节 ${index + 1} (${chapterTitle}): ${chapterContent.substring(0, 100)}...`);
+
+            if (chapterContent) {
+                novelContent += `${chapterTitle}\n\n${chapterContent}\n\n`;
+            }
+        });
+
+        if (!novelContent.trim()) {
+            this.showToast('没有找到章节正文内容，请先生成一些章节内容', 3000);
+            return;
+        }
+
+        // 显示格式选择对话框
+        this.showDownloadDialog(novelContent);
+    }
+
+    showDownloadDialog(content) {
+        const dialog = document.createElement('div');
+        dialog.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;">
+                <div style="background: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%;">
+                    <h3 style="margin-top: 0;">下载小说</h3>
+                    <div style="margin: 15px 0;">
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="radio" name="format" value="txt" checked> TXT格式 (纯文本)
+                        </label>
+                        <label style="display: block; margin-bottom: 10px; color: #999;">
+                            <input type="radio" name="format" value="docx" disabled> DOCX格式 (Word文档) - 暂不可用
+                        </label>
+                        <label style="display: block; margin-bottom: 10px; color: #999;">
+                            <input type="radio" name="format" value="pdf" disabled> PDF格式 (PDF文档) - 暂不可用
+                        </label>
+                    </div>
+                    <div style="margin: 15px 0;">
+                        <label>文件名: <input type="text" id="novel-title" value="generated_novel" style="width: 200px; padding: 5px;"></label>
+                    </div>
+                    <div style="text-align: right;">
+                        <button id="cancel-download" style="margin-right: 10px; padding: 8px 16px;">取消</button>
+                        <button id="confirm-download" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px;">下载</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+
+        document.getElementById('cancel-download').addEventListener('click', () => {
+            document.body.removeChild(dialog);
+        });
+
+        document.getElementById('confirm-download').addEventListener('click', () => {
+            const format = document.querySelector('input[name="format"]:checked').value;
+            const title = document.getElementById('novel-title').value || 'generated_novel';
+
+            this.performDownload(content, format, title);
+            document.body.removeChild(dialog);
+        });
+    }
+
+    performDownload(content, format, title) {
+        fetch('/download', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                content: content,
+                format: format,
+                title: title
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('下载失败');
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            this.showToast('小说下载成功！');
+        })
+        .catch(error => {
+            console.error('下载失败:', error);
+            this.showToast('下载失败，请重试', 5000);
+        });
     }
 
     showToast(message, duration = 3000) {

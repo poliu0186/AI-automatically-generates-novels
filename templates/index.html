@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <title>小说创作助手</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        if (!window.jQuery) {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"><\\/script>');
+        }
+    </script>
+    <script>
+        if (!window.jQuery) {
+            document.write('<script src="{{ url_for("static", filename="vendor/jquery-3.6.0.min.js") }}"><\\/script>');
+        }
+    </script>
     <link crossorigin="anonymous" media="all" rel="stylesheet" href="{{ url_for('static', filename='cs.css') }}" />
 
 
@@ -15,6 +25,17 @@
 
 </head>
 <body>
+    <div class="auth-status">
+        <div class="auth-status-left">
+            欢迎，{{ user.username }}
+            {% if user.is_admin %}
+                | <a href="{{ url_for('admin.admin_dashboard') }}">管理员后台</a>
+            {% endif %}
+        </div>
+        <div class="auth-status-right">
+            <a href="{{ url_for('auth.logout') }}">退出登录</a>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/jsmind@0.4.6/js/jsmind.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsmind@0.4.6/js/jsmind.draggable.js"></script>
 
@@ -354,6 +375,9 @@ ${style}
                     <button onclick="showTempContainer()" class="normal-button">显示章节生成区域</button>
                 </div>
                 <div id="chapters"></div>
+                <div class="chapter-buttons" style="margin-top: 16px;">
+                    <button id="download-generated-novel" class="normal-button">下载生成小说</button>
+                </div>
             </div>
         </div>
     </div>
@@ -369,6 +393,21 @@ ${style}
     </div>
 
     <script>
+        const STORAGE_KEY = 'novelState_user_{{ user.id }}';
+
+        if (!window.jQuery) {
+            alert('页面依赖库加载失败，请刷新页面或检查网络后重试。');
+            throw new Error('jQuery failed to load');
+        }
+
+        function parseMenuConfigSafely(value) {
+            try {
+                return JSON.parse(value);
+            } catch (error) {
+                return null;
+            }
+        }
+
         // 保存当前状态到localStorage
         function saveState() {
             const state = {
@@ -396,9 +435,9 @@ ${style}
                 
                 // 保存右键菜单的当前状态
                 menuStates: {
-                    outline: JSON.parse($('#outline-menu-config').val()),
-                    chapter: JSON.parse($('#chapter-menu-config').val()),
-                    content: JSON.parse($('#content-menu-config').val())
+                    outline: parseMenuConfigSafely($('#outline-menu-config').val()),
+                    chapter: parseMenuConfigSafely($('#chapter-menu-config').val()),
+                    content: parseMenuConfigSafely($('#content-menu-config').val())
                 },
                 
                 // 章节数据
@@ -415,7 +454,7 @@ ${style}
             });
 
             try {
-                localStorage.setItem('novelState', JSON.stringify(state));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
             } catch (e) {
                 console.error('保存状态失败:', e);
                 alert('保存状态失败，请检查浏览器存储空间是否足够');
@@ -425,7 +464,7 @@ ${style}
         // 从localStorage加载状态
         function loadState() {
             try {
-                const state = JSON.parse(localStorage.getItem('novelState'));
+                const state = JSON.parse(localStorage.getItem(STORAGE_KEY));
                 if (state) {
                     // 加载基础设置
                     $('#background').val(state.background || '');
@@ -726,7 +765,7 @@ ${style}
                 $('#outline').val('');
                 $('#chapter-temp-content').val('');
                 $('#chapters').empty();
-                localStorage.removeItem('novelState');
+                localStorage.removeItem(STORAGE_KEY);
             }
         }
 
@@ -787,9 +826,17 @@ ${style}
         // 右键菜单相关函数
         let selectedText = '';
         let currentTarget = null;
+function getSelectedText(target) {
+    if (target && typeof target.selectionStart === 'number' && typeof target.selectionEnd === 'number') {
+        return target.value.slice(target.selectionStart, target.selectionEnd);
+    }
+
+    return window.getSelection().toString();
+}
+
 function showContextMenu(e, config, target) {
     e.preventDefault();
-    selectedText = window.getSelection().toString();
+    selectedText = getSelectedText(target);
     if (!selectedText) return;
 
     currentTarget = target;
@@ -913,8 +960,51 @@ async function handleContextMenuAction(item) {
             generateOutline();
         }
 
+        async function downloadGeneratedNovel() {
+            const chapterTexts = $('.chapter-content-text')
+                .map(function() { return $(this).val().trim(); })
+                .get()
+                .filter(Boolean);
+
+            if (chapterTexts.length === 0) {
+                alert('当前没有生成的章节正文，请先生成正文后再下载。');
+                return;
+            }
+
+            const content = chapterTexts.join('\n\n');
+            let title = $('#outline').val().trim().split('\n')[0] || 'novel';
+            title = title.replace(/[\\/:*?"<>|]/g, '').slice(0, 100) || 'novel';
+
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ content, format: 'txt', title })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || '下载失败');
+                }
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${title}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('下载失败，请重试：' + error.message);
+                console.error(error);
+            }
+        }
+
         // 初始化事件绑定
         $(document).ready(function() {
+            $('#download-generated-novel').on('click', downloadGeneratedNovel);
             // 绑定右键菜单事件
             $('#outline').on('contextmenu', function(e) {
                 showContextMenu(e, $('#outline-menu-config').val(), this);
@@ -932,6 +1022,7 @@ async function handleContextMenuAction(item) {
             
             // 设置面板折叠功能
             $('.collapsible').click(function() {
+                $(this).toggleClass('active');
                 $(this).next('.content').toggleClass('show');
             });
 
@@ -952,13 +1043,13 @@ async function handleContextMenuAction(item) {
 
             // 监听存储变化，实现多标签页同步
             window.addEventListener('storage', (e) => {
-                if (e.key === 'novelState') {
+                if (e.key === STORAGE_KEY) {
                     loadState();
                 }
             });
 
             // 自动展开第一个设置面板
-            $('.collapsible:first').next('.content').addClass('show');
+            $('.collapsible:first').addClass('active').next('.content').addClass('show');
         });
 
         // 错误处理函数
@@ -1011,13 +1102,13 @@ function fixContextMenuBinding() {
     });
 
     // 为所有章节细纲绑定右键菜单
-    $(document).on('contextmenu', '.chapter-outline', function(e) {
+    $(document).off('contextmenu', '.chapter-outline').on('contextmenu', '.chapter-outline', function(e) {
         e.preventDefault();
         showContextMenu(e, $('#chapter-menu-config').val(), this);
     });
 
     // 为所有章节正文绑定右键菜单
-    $(document).on('contextmenu', '.chapter-content-text', function(e) {
+    $(document).off('contextmenu', '.chapter-content-text').on('contextmenu', '.chapter-content-text', function(e) {
         e.preventDefault();
         showContextMenu(e, $('#content-menu-config').val(), this);
     });
@@ -1035,43 +1126,6 @@ $(document).ready(function() {
     };
 });
 
-// 修复后的showContextMenu函数
-function showContextMenu(e, config, target) {
-    // 确保有选中的文本
-    selectedText = window.getSelection().toString();
-    if (!selectedText) return;
-
-    currentTarget = target;
-    const menu = $('#context-menu');
-    menu.empty();
-
-    try {
-        const menuConfig = JSON.parse(config);
-        menuConfig.menu.forEach(item => {
-            const menuItem = $('<div class="context-menu-item"></div>')
-                .text(item.name)
-                .on('click', () => handleContextMenuAction(item));
-            menu.append(menuItem);
-        });
-
-        // 确保菜单显示在鼠标位置
-        menu.css({
-            display: 'block',
-            left: Math.min(e.pageX, window.innerWidth - menu.width() - 10) + 'px',
-            top: Math.min(e.pageY, window.innerHeight - menu.height() - 10) + 'px'
-        });
-
-        // 点击其他地方关闭菜单
-        $(document).one('click', function(e) {
-            if (!$(e.target).closest('#context-menu').length) {
-                menu.hide();
-            }
-        });
-
-    } catch (error) {
-        console.error('解析菜单配置出错:', error);
-    }
-}
     </script>
 <script src="{{ url_for('static', filename='outin.js') }}"></script>
 <script src="{{ url_for('static', filename='bookinfo.js') }}"></script>
