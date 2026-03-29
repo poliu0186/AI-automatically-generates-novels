@@ -1,0 +1,2957 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小说创作子页面</title>
+    {% if active_page == 'advanced-mindmap' %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsmind@0.4.6/style/jsmind.css">
+    <script src="https://cdn.jsdelivr.net/npm/jsmind@0.4.6/js/jsmind.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsmind@0.4.6/js/jsmind.draggable.js"></script>
+    {% endif %}
+    <style>
+        :root {
+            --line: #d8e1ea;
+            --panel: #ffffff;
+            --bg: #f5f8fc;
+            --ink: #1f2d3d;
+            --muted: #607487;
+            --brand: #1f6fb2;
+            --brand-2: #2e91e5;
+            --danger: #b03737;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--ink);
+            background: var(--bg);
+        }
+
+        .page {
+            padding: 18px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+
+        h2 {
+            margin: 0 0 6px;
+            font-size: 20px;
+        }
+
+        .desc {
+            margin: 0 0 14px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .field { margin-bottom: 12px; }
+
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin: 0 0 10px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 15px;
+            color: #28435d;
+        }
+
+        .section-subtitle {
+            margin: 0 0 12px;
+            color: #6a8094;
+            font-size: 12px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: #eaf3fc;
+            color: #356082;
+        }
+
+        .ghost-button {
+            background: #f6faff;
+            color: #3d5f7d;
+        }
+
+        .collapsible-panel {
+            display: none;
+            margin-top: 8px;
+            padding-top: 10px;
+            border-top: 1px dashed #d9e5f1;
+        }
+
+        .collapsible-panel.open {
+            display: block;
+        }
+
+        .custom-input {
+            display: none;
+            margin-top: 8px;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .strategy-option-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .strategy-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            border: 1px solid #d9e4ef;
+            border-radius: 8px;
+            padding: 8px 10px;
+            background: #f9fcff;
+        }
+
+        .strategy-option input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin-top: 2px;
+        }
+
+        .strategy-option .text {
+            font-size: 13px;
+            color: #35516b;
+            line-height: 1.5;
+            flex: 1;
+        }
+
+        .strategy-option .remove-custom-btn {
+            border: 1px solid #e3b8b8;
+            color: #9a3d3d;
+            background: #fff6f6;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            line-height: 1.2;
+        }
+
+        .strategy-option .remove-custom-btn:hover {
+            background: #ffecec;
+        }
+
+        .strategy-number-editor {
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .strategy-param-badges {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            gap: 6px;
+            margin-left: auto;
+            align-self: center;
+        }
+
+        .strategy-param-badges .param-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            padding: 2px 10px;
+            border: 1px solid #c7d8e8;
+            border-radius: 999px;
+            font-size: 12px;
+            color: #4f6f8b;
+            background: #f8fbff;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .strategy-option.has-numeric .strategy-param-badges {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+        }
+
+        .strategy-option.has-numeric:hover .strategy-param-badges {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .strategy-number-editor .num-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 8px;
+            border: 1px solid #d8e4ef;
+            border-radius: 999px;
+            background: #fff;
+            font-size: 12px;
+            color: #48627a;
+        }
+
+        .strategy-number-editor input {
+            width: 72px;
+            min-height: 28px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .strategy-number-actions {
+            display: flex;
+            gap: 6px;
+            width: 100%;
+            margin-top: 2px;
+        }
+
+        .strategy-number-actions button {
+            font-size: 12px;
+            padding: 4px 10px;
+        }
+
+        .strategy-custom-input {
+            min-width: 260px;
+            flex: 1;
+        }
+
+        .manual-readonly {
+            background: #f7fafc;
+            color: #48627a;
+        }
+
+        .meta-hint {
+            margin: 0 0 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: #f4f8fc;
+            color: #52708b;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .label {
+            font-size: 13px;
+            color: #3d556c;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 14px;
+            background: #fff;
+        }
+
+        input,
+        select {
+            min-height: 42px;
+        }
+
+        textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #8bb6dd;
+            box-shadow: 0 0 0 3px rgba(31, 111, 178, 0.12);
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        button {
+            border: 1px solid var(--line);
+            background: #fff;
+            color: #2f4d67;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, var(--brand), var(--brand-2));
+            color: #fff;
+            border-color: #1f6fb2;
+        }
+
+        button.danger {
+            color: var(--danger);
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #31516f;
+            min-height: 20px;
+        }
+
+        .chapter {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #fbfdff;
+        }
+
+        .chapter h4 {
+            margin: 0 0 8px;
+            font-size: 14px;
+        }
+
+        .note {
+            border-left: 4px solid #7eb2df;
+            background: #eef6ff;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #3f5f7b;
+            margin-bottom: 10px;
+        }
+
+        .context-menu {
+            position: fixed;
+            display: none;
+            z-index: 9999;
+            min-width: 180px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            box-shadow: 0 8px 18px rgba(22, 43, 61, 0.14);
+            padding: 6px;
+        }
+
+        .context-menu button {
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: left;
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: #304d66;
+            font-size: 13px;
+        }
+
+        .context-menu button:hover {
+            background: #eef6ff;
+        }
+
+        .split-layout {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 12px;
+            min-height: 460px;
+        }
+
+        .kb-nav {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #f8fbff;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .kb-nav button {
+            width: 100%;
+            text-align: left;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid transparent;
+        }
+
+        .kb-nav button.active {
+            background: #e9f2fc;
+            border-color: #bfd4e8;
+            color: #1f6fb2;
+        }
+
+        .kb-main {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+            padding: 12px;
+        }
+
+        .kb-item {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #fbfdff;
+        }
+
+        .kb-item-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .kb-tag {
+            display: inline-block;
+            margin-right: 6px;
+            margin-top: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #edf4fb;
+            color: #43607b;
+            font-size: 12px;
+        }
+
+        .kb-linker {
+            margin-top: 8px;
+            border: 1px dashed #bfd1e3;
+            border-radius: 10px;
+            padding: 10px;
+            background: #f8fbff;
+        }
+
+        .kb-linker-head {
+            font-size: 13px;
+            color: #31516d;
+            margin: 0 0 8px;
+        }
+
+        .kb-linker-select {
+            min-width: 220px;
+            max-width: 320px;
+        }
+
+        .kb-linker-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .onboard-tip {
+            margin: 0 0 12px;
+            padding: 10px 12px;
+            border: 1px solid #c6d9eb;
+            border-radius: 10px;
+            background: #f5faff;
+            color: #355774;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .onboard-tip .toolbar {
+            margin-top: 8px;
+        }
+
+        .mind-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 12px;
+            min-height: 520px;
+        }
+
+        .mind-card {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            min-height: 520px;
+        }
+
+        #mindmap-canvas {
+            flex: 1;
+            min-height: 420px;
+            border: 1px solid #dbe5ef;
+            border-radius: 8px;
+            background: #f8fbff;
+            overflow: auto;
+        }
+
+        .mind-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 1080px) {
+            .meta-grid,
+            .strategy-grid,
+            .split-layout,
+            .mind-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        {% if active_page == 'basic' %}
+        <div class="card">
+            <h2>作品设定</h2>
+            <p class="desc">先定义题材、读者、时空背景和关键角色，后续生成会稳定很多。</p>
+            <div class="onboard-tip" id="role-onboard-tip" style="display:none;">
+                建议先在“高级设置 → 知识库 → 人物档案”里建立主角、反派、导师等角色条目（可加标签如：主角/反派/阵营/关系）。
+                这些条目可一键同步到这里的人物设定，并在大纲、章节、正文生成时持续生效。
+                <div class="toolbar">
+                    <button class="primary" id="btn-go-knowledge" type="button">前往知识库设置角色</button>
+                    <button id="btn-hide-role-tip" type="button">我知道了</button>
+                </div>
+            </div>
+            <div class="meta-hint">建议先填写这 4 个基础定位：小说类型、面向读者、故事时间、故事地点。它们会直接影响大纲风格、剧情节奏和场景表达。</div>
+            <div class="section-head">
+                <h3 class="section-title">基础定位</h3>
+                <span class="pill">建议优先填写</span>
+            </div>
+            <p class="section-subtitle">这部分决定题材方向、语言风格和读者预期，建议先补全再继续生成。</p>
+            <div class="meta-grid">
+                <div class="field">
+                    <label class="label" for="novel-type">小说类型</label>
+                    <select id="novel-type">
+                        <option value="">请选择小说类型</option>
+                        <option value="都市言情">都市言情</option>
+                        <option value="都市爽文">都市爽文</option>
+                        <option value="古代言情">古代言情</option>
+                        <option value="玄幻升级">玄幻升级</option>
+                        <option value="武侠仙侠">武侠仙侠</option>
+                        <option value="历史架空">历史架空</option>
+                        <option value="悬疑推理">悬疑推理</option>
+                        <option value="科幻末世">科幻末世</option>
+                        <option value="校园青春">校园青春</option>
+                        <option value="职场商战">职场商战</option>
+                        <option value="轻小说">轻小说</option>
+                        <option value="__custom__">其他（自定义）</option>
+                    </select>
+                    <input class="custom-input" id="novel-type-custom" placeholder="请输入自定义小说类型">
+                </div>
+                <div class="field">
+                    <label class="label" for="target-readers">面向读者</label>
+                    <select id="target-readers">
+                        <option value="">请选择目标读者</option>
+                        <option value="女频读者（18-30岁）">女频读者（18-30岁）</option>
+                        <option value="男频读者（18-35岁）">男频读者（18-35岁）</option>
+                        <option value="青少年读者">青少年读者</option>
+                        <option value="轻小说读者">轻小说读者</option>
+                        <option value="悬疑题材爱好者">悬疑题材爱好者</option>
+                        <option value="快节奏移动端读者">快节奏移动端读者</option>
+                        <option value="治愈向阅读人群">治愈向阅读人群</option>
+                        <option value="__custom__">其他（自定义）</option>
+                    </select>
+                    <input class="custom-input" id="target-readers-custom" placeholder="请输入自定义读者画像">
+                </div>
+                <div class="field">
+                    <label class="label" for="story-time">故事时间</label>
+                    <select id="story-time">
+                        <option value="">请选择故事时间</option>
+                        <option value="现代都市">现代都市</option>
+                        <option value="近未来">近未来</option>
+                        <option value="古代王朝">古代王朝</option>
+                        <option value="民国近代">民国近代</option>
+                        <option value="架空时代">架空时代</option>
+                        <option value="末世时期">末世时期</option>
+                        <option value="星际时代">星际时代</option>
+                        <option value="异世界纪元">异世界纪元</option>
+                        <option value="__custom__">其他（自定义）</option>
+                    </select>
+                    <input class="custom-input" id="story-time-custom" placeholder="请输入自定义故事时间">
+                </div>
+                <div class="field">
+                    <label class="label" for="story-location">故事地点</label>
+                    <select id="story-location">
+                        <option value="">请选择故事地点</option>
+                        <option value="现代都市">现代都市</option>
+                        <option value="校园">校园</option>
+                        <option value="乡村小镇">乡村小镇</option>
+                        <option value="宫廷朝堂">宫廷朝堂</option>
+                        <option value="江湖武林">江湖武林</option>
+                        <option value="仙侠世界">仙侠世界</option>
+                        <option value="异世界大陆">异世界大陆</option>
+                        <option value="星际舰域">星际舰域</option>
+                        <option value="末世废土">末世废土</option>
+                        <option value="海上群岛">海上群岛</option>
+                        <option value="__custom__">其他（自定义）</option>
+                    </select>
+                    <input class="custom-input" id="story-location-custom" placeholder="请输入自定义故事地点">
+                </div>
+            </div>
+            <div class="section-head" style="margin-top:6px;">
+                <div>
+                    <h3 class="section-title">详细设定</h3>
+                    <p class="section-subtitle" style="margin:4px 0 0;">世界观、人物和剧情资料较多时再展开补充。</p>
+                </div>
+                <button class="ghost-button" id="btn-toggle-basic-details" type="button">展开详细设定</button>
+            </div>
+            <div class="collapsible-panel" id="basic-details-panel">
+                <div class="field"><label class="label" for="background">小说背景</label><textarea id="background"></textarea></div>
+                <div class="field">
+                    <label class="label" for="characters">人物设定</label>
+                    <textarea id="characters"></textarea>
+                    <div class="kb-linker">
+                        <p class="kb-linker-head">从知识库人物档案关联到作品设定（建议至少选择主角与核心配角）</p>
+                        <div class="kb-linker-row">
+                            <select id="kb-character-picker" class="kb-linker-select">
+                                <option value="">请选择知识库人物</option>
+                            </select>
+                            <select id="kb-character-target" class="kb-linker-select">
+                                <option value="characters">写入到：人物设定</option>
+                                <option value="relationships">写入到：角色关系</option>
+                            </select>
+                        </div>
+                        <div class="toolbar" style="margin-top:8px;">
+                            <button type="button" id="btn-insert-character">插入所选人物</button>
+                            <button type="button" id="btn-sync-all-characters">同步全部到人物设定</button>
+                            <button type="button" id="btn-go-knowledge-inline">去知识库维护人物</button>
+                        </div>
+                        <p class="section-subtitle" id="kb-character-help" style="margin:8px 0 0;">若下拉为空，请先到“高级设置 → 知识库 → 人物档案”新增条目。</p>
+                    </div>
+                </div>
+                <div class="field"><label class="label" for="relationships">角色关系</label><textarea id="relationships"></textarea></div>
+                <div class="field">
+                    <label class="label" for="plot">核心剧情/知识库</label>
+                    <textarea id="plot"></textarea>
+                    <div class="kb-linker">
+                        <p class="kb-linker-head">从知识库提炼核心剧情素材（建议优先关联：剧情线索 + 时间线）</p>
+                        <div class="kb-linker-row">
+                            <select id="kb-plot-source" class="kb-linker-select">
+                                <option value="plotLines">来源：剧情线索</option>
+                                <option value="timeline">来源：时间线</option>
+                                <option value="worldSettings">来源：世界观</option>
+                                <option value="locations">来源：地点空间</option>
+                            </select>
+                            <select id="kb-plot-picker" class="kb-linker-select">
+                                <option value="">请选择知识库条目</option>
+                            </select>
+                        </div>
+                        <div class="toolbar" style="margin-top:8px;">
+                            <button type="button" id="btn-insert-plot">插入所选条目到核心剧情</button>
+                            <button type="button" id="btn-sync-plot-source">同步该分类到核心剧情</button>
+                        </div>
+                        <p class="section-subtitle" id="kb-plot-help" style="margin:8px 0 0;">剧情线索适合写主线冲突，时间线适合写阶段推进，世界观适合写规则与限制。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="status" id="status"></div>
+        </div>
+        {% elif active_page == 'prompts' %}
+        <div class="card">
+            <h2>创作策略</h2>
+            <p class="desc">将默认要求拆成可选策略，你可直接勾选并自定义新增，最终由用户选择结果组装提示词。</p>
+            <div class="meta-hint">说明：大纲、章节、正文三块策略都是同一交互方式（默认条目可多选 + 支持新增自定义策略）。创作要求全部为非必选，未选择/未填写的项不会注入提示词。点击“应用到提示词”后会同步更新三类提示词。</div>
+
+            <div class="section-head">
+                <h3 class="section-title">策略选择</h3>
+                <span class="pill">可多选 + 可新增</span>
+            </div>
+            <div class="field">
+                <label class="label">大纲策略（默认要求，可多选）</label>
+                <div class="strategy-option-list" id="outline-strategy-list"></div>
+                <div class="toolbar" style="margin-top:8px;">
+                    <input id="outline-custom-strategy-input" class="strategy-custom-input" placeholder="新增大纲策略，例如：输出应突出开篇钩子、每卷爆点与短周期冲突升级路径">
+                    <button type="button" id="btn-add-outline-strategy">新增大纲策略</button>
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label">章节策略（默认要求，可多选）</label>
+                <div class="strategy-option-list" id="chapter-strategy-list"></div>
+                <div class="toolbar" style="margin-top:8px;">
+                    <input id="chapter-custom-strategy-input" class="strategy-custom-input" placeholder="新增章节策略，例如：每章结尾必须制造下一章阅读驱动力">
+                    <button type="button" id="btn-add-chapter-strategy">新增章节策略</button>
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label">正文策略（默认要求，可多选）</label>
+                <div class="strategy-option-list" id="content-strategy-list"></div>
+                <div class="toolbar" style="margin-top:8px;">
+                    <input id="content-custom-strategy-input" class="strategy-custom-input" placeholder="新增正文策略，例如：每章至少出现一个可视化动作场景">
+                    <button type="button" id="btn-add-content-strategy">新增正文策略</button>
+                </div>
+            </div>
+
+            <div class="note" style="margin-top:8px;">已下架额外模板衍生策略，当前仅保留默认要求策略 + 用户自定义策略，便于统一理解。</div>
+
+            <div class="section-head">
+                <h3 class="section-title">创作要求</h3>
+                <span class="pill">可修改</span>
+            </div>
+            <p class="section-subtitle">本区所有选项均可留空；留空即表示不对对应维度施加额外限制。</p>
+            <div class="strategy-grid">
+                <div class="field">
+                    <label class="label" for="narrative-perspective">叙事视角</label>
+                    <select id="narrative-perspective">
+                        <option value="">不指定（可选）</option>
+                        <option value="first">第一人称</option>
+                        <option value="third">第三人称</option>
+                        <option value="multi">多视角切换</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="label" for="language-style">语言风格倾向</label>
+                    <select id="language-style">
+                        <option value="">不指定（可选）</option>
+                        <option value="plain">简洁直白</option>
+                        <option value="balanced">通俗均衡</option>
+                        <option value="literary">偏文学化</option>
+                        <option value="__custom__">自定义</option>
+                    </select>
+                    <input class="custom-input" id="language-style-custom" placeholder="请输入自定义语言风格要求">
+                </div>
+                <div class="field">
+                    <label class="label" for="pacing-level">节奏强度</label>
+                    <select id="pacing-level">
+                        <option value="">不指定（可选）</option>
+                        <option value="slow">慢热铺垫</option>
+                        <option value="balanced">均衡推进</option>
+                        <option value="fast">快节奏推进</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="label" for="conflict-level">冲突强度</label>
+                    <select id="conflict-level">
+                        <option value="">不指定（可选）</option>
+                        <option value="low">轻冲突</option>
+                        <option value="mid">中强冲突</option>
+                        <option value="high">高冲突</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="label" for="emotion-level">情感浓度</label>
+                    <select id="emotion-level">
+                        <option value="">不指定（可选）</option>
+                        <option value="low">克制表达</option>
+                        <option value="mid">适中表达</option>
+                        <option value="high">高情绪张力</option>
+                        <option value="__custom__">自定义</option>
+                    </select>
+                    <input class="custom-input" id="emotion-level-custom" placeholder="请输入自定义情感浓度要求">
+                </div>
+                <div class="field">
+                    <label class="label" for="hook-strength">章末钩子</label>
+                    <select id="hook-strength">
+                        <option value="">不指定（可选）</option>
+                        <option value="light">轻钩子</option>
+                        <option value="mid">中钩子</option>
+                        <option value="strong">强钩子</option>
+                        <option value="__custom__">自定义</option>
+                    </select>
+                    <input class="custom-input" id="hook-strength-custom" placeholder="请输入自定义章末钩子要求">
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label" for="custom-strategy-requirements">额外创作要求（可选）</label>
+                <textarea id="custom-strategy-requirements" placeholder="例如：女主成长线优先；前 3 章每章必须有反转；避免过度说教。"></textarea>
+            </div>
+
+            <div class="toolbar" style="margin-bottom:8px;">
+                <button class="primary" id="btn-apply-strategy" type="button">应用到提示词</button>
+                <button id="btn-reset-strategy" type="button">恢复默认策略</button>
+                <button class="ghost-button" id="btn-toggle-manual-prompts" type="button">展开高级提示词编辑</button>
+            </div>
+
+            <div class="collapsible-panel" id="manual-prompts-panel">
+                <p class="section-subtitle" style="margin:0 0 8px;">当前模式：只读展示（在上方策略区完成所有改动）</p>
+                <div class="field"><label class="label" for="outline-prompt">大纲提示词（高级）</label><textarea id="outline-prompt"></textarea></div>
+                <div class="field"><label class="label" for="chapter-prompt">章节提示词（高级）</label><textarea id="chapter-prompt"></textarea></div>
+                <div class="field"><label class="label" for="content-prompt">正文提示词（高级）</label><textarea id="content-prompt"></textarea></div>
+            </div>
+            <div class="status" id="status"></div>
+        </div>
+        {% elif active_page == 'outline' %}
+        <div class="card">
+            <h2>生成大纲</h2>
+            <p class="desc">基于设定和策略生成全书大纲。</p>
+            <div class="toolbar">
+                <button class="primary" id="btn-generate-outline" type="button">一键生成大纲</button>
+                <button id="btn-regenerate-outline" type="button">重新生成大纲</button>
+                <button id="btn-generate-chapters" type="button">按大纲拆解章节</button>
+            </div>
+            <div class="field" style="margin-top:10px;"><label class="label" for="outline">大纲内容</label><textarea id="outline"></textarea></div>
+            <div class="field" id="chapter-split-preview-field" style="margin-top:10px;display:none;">
+                <label class="label" for="chapter-split-preview">章节拆解结果预览</label>
+                <textarea id="chapter-split-preview" placeholder="点击“按大纲拆解章节”后，这里会实时显示拆解结果。"></textarea>
+                <div class="toolbar" style="margin-top:10px;">
+                    <button id="btn-go-chapters" type="button">前往“写作章节”继续</button>
+                </div>
+            </div>
+            <div class="status" id="status"></div>
+        </div>
+        {% elif active_page == 'chapters' %}
+        <div class="card">
+            <h2>写作章节</h2>
+            <p class="desc">逐章创作正文，支持随时新增和重写。</p>
+            <div class="toolbar">
+                <button class="primary" id="btn-add-chapter" type="button">新增章节</button>
+                <button id="btn-import-from-outline" type="button">从拆解结果导入章节</button>
+                <button class="danger" id="btn-clear-chapters" type="button">清空章节</button>
+            </div>
+            <div class="note" id="chapter-note">当前没有章节，请点击“新增章节”开始创作。</div>
+            <div id="chapters"></div>
+            <div class="status" id="status"></div>
+        </div>
+        {% elif active_page == 'export' %}
+        <div class="card">
+            <h2>导出成稿</h2>
+            <p class="desc">汇总所有章节正文并导出 TXT。</p>
+            <div class="note" id="export-summary"></div>
+            <div class="toolbar">
+                <button class="primary" id="btn-export" type="button">导出小说（TXT）</button>
+            </div>
+            <div class="status" id="status"></div>
+        </div>
+        {% elif active_page == 'advanced-contextmenu' %}
+        <div class="card">
+            <h2>高级设置 · 右键菜单</h2>
+            <p class="desc">在“写作章节”页面选中文本右键，即可按这里配置的动作进行改写与优化。</p>
+            <div class="field"><label class="label" for="outline-menu-config">大纲右键菜单 JSON</label><textarea id="outline-menu-config"></textarea></div>
+            <div class="field"><label class="label" for="chapter-menu-config">章节细纲右键菜单 JSON</label><textarea id="chapter-menu-config"></textarea></div>
+            <div class="field"><label class="label" for="content-menu-config">正文右键菜单 JSON</label><textarea id="content-menu-config"></textarea></div>
+            <div class="toolbar">
+                <button id="btn-menu-reset" type="button">恢复默认配置</button>
+            </div>
+            <div class="status" id="status"></div>
+        </div>
+        {% elif active_page == 'advanced-knowledge' %}
+        <div class="card">
+            <h2>高级设置 · 知识库</h2>
+            <p class="desc">沉淀世界观资料、术语、历史事件、设定规则，所有生成步骤都会自动参考该知识库。</p>
+            <div class="meta-hint">角色设定入口在“人物档案”。请优先创建会贯穿全书的条目（如主角、反派、关键配角），并在标签中注明身份或关系（如：主角、反派、师徒、同盟、家族）。随后可在“作品设定”页面一键关联到“人物设定/角色关系”。</div>
+            <div class="split-layout">
+                <div class="kb-nav" id="kb-nav"></div>
+                <div class="kb-main">
+                    <div class="field"><label class="label" for="kb-search">搜索</label><input id="kb-search" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="输入关键字筛选条目"></div>
+                    <div id="kb-items"></div>
+                    <div class="card" style="margin-top:8px;">
+                        <h3 style="margin:0 0 10px;font-size:15px;">新增 / 编辑条目</h3>
+                        <div class="field"><label class="label" for="kb-title">名称</label><input id="kb-title" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;"></div>
+                        <div class="field"><label class="label" for="kb-desc">描述</label><textarea id="kb-desc" style="min-height:110px;"></textarea></div>
+                        <div class="field"><label class="label" for="kb-tags">标签（逗号分隔）</label><input id="kb-tags" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="主线, 反派, 城市"></div>
+                        <div class="toolbar">
+                            <button class="primary" id="kb-save" type="button">保存条目</button>
+                            <button id="kb-reset" type="button">清空表单</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="status" id="status"></div>
+        </div>
+        {% elif active_page == 'advanced-mindmap' %}
+        <div class="card">
+            <h2>高级设置 · 思维导图生成大纲</h2>
+            <p class="desc">输入主题后生成“思维导图式结构大纲”，并可一键写入主大纲。</p>
+            <div class="mind-grid">
+                <div class="mind-card">
+                    <div class="field"><label class="label" for="mindmap-topic">主题/灵感</label><textarea id="mindmap-topic" style="min-height:88px;"></textarea></div>
+                    <div id="mindmap-canvas"></div>
+                    <div class="mind-actions">
+                        <button id="btn-mind-add" type="button">新增子节点</button>
+                        <button id="btn-mind-edit" type="button">编辑节点</button>
+                        <button id="btn-mind-remove" type="button">删除节点</button>
+                        <button id="btn-mind-reset" type="button">重置导图</button>
+                    </div>
+                </div>
+                <div class="mind-card">
+                    <div class="mind-actions" style="margin-top:0;">
+                        <button class="primary" id="btn-generate-mindmap" type="button">按导图生成大纲</button>
+                        <button id="btn-apply-mindmap" type="button">写入主大纲</button>
+                    </div>
+                    <div class="field" style="margin-top:10px;"><label class="label" for="mindmap-result">生成结果</label><textarea id="mindmap-result" style="min-height:420px;"></textarea></div>
+                </div>
+            </div>
+            <div class="status" id="status"></div>
+        </div>
+        {% else %}
+        <div class="card">
+            <h2>高级设置</h2>
+            <p class="desc">请选择右键设置、知识库或思维导图子功能。</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="context-menu" id="context-menu"></div>
+
+    <script>
+        const ACTIVE_PAGE = '{{ active_page }}';
+        const STORAGE_KEY = 'novelState_user_{{ user.id }}';
+        let contextTarget = null;
+        let selectedText = '';
+
+        const defaultPrompts = {
+            outlinePrompt: '请基于以下信息生成结构清晰、冲突鲜明、适合目标读者的小说大纲。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n请输出：故事梗概、核心冲突、主要人物弧光、剧情推进阶段、关键转折与结局方向。',
+            chapterPrompt: '请基于以下信息拆解章节细纲，使用 ###fenge 作为章节分隔符。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n当前小说大纲：${outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n每章需体现明确冲突、人物推进和结尾钩子。',
+            contentPrompt: '请基于以下信息写出有代入感的章节正文，避免模板化表达。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n总体大纲：${outline}\n当前章节细纲：${chapter_outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n请强化场景感、人物行动逻辑和章末余味。'
+        };
+
+        const defaultMenus = {
+            outlineMenuConfig: {
+                menu: [
+                    { name: '评估结构', prompt: '请评价这段大纲结构并给出可执行优化建议：${selected_text}' },
+                    { name: '强化冲突', prompt: '请强化这段内容的冲突与悬念：${selected_text}' }
+                ]
+            },
+            chapterMenuConfig: {
+                menu: [
+                    { name: '细纲扩写', prompt: '请把这段章节细纲扩写为更详细的行动步骤：${selected_text}' },
+                    { name: '节奏优化', prompt: '请优化这段章节细纲的节奏，保留关键信息：${selected_text}' }
+                ]
+            },
+            contentMenuConfig: {
+                menu: [
+                    { name: '润色文笔', prompt: '请在保持意思不变的前提下润色这段文字：${selected_text}' },
+                    { name: '增强画面感', prompt: '请增强这段内容的画面感与情绪张力：${selected_text}' }
+                ]
+            }
+        };
+
+        const promptTemplateLibrary = {
+            outline: {
+                balanced: '请基于以下信息生成结构清晰、冲突鲜明、适配主流网文平台的小说大纲。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n请输出：故事梗概、核心冲突、人物弧光、剧情推进阶段、关键转折与结局方向。',
+                qidian_fantasy: '请按起点男频玄幻风格生成长线大纲，强调升级体系、资源争夺、势力博弈和阶段性爽点。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n输出需包含：境界/能力成长路线、主要势力关系图、每卷核心目标、中后期终局矛盾。',
+                qidian_urban: '请按起点都市成长风格生成大纲，强调现实规则、事业线推进、身份反差与持续冲突。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n输出需包含：主角阶段目标、职场/行业节点、关键对手、口碑与资源变化路径。',
+                fanqie_fast: '请按番茄高可读连载风格生成大纲，强调开篇吸睛、冲突密集、反馈迅速和连续反转。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n输出需包含：前三章钩子设计、每10章爆点规划、反派压迫节奏、情绪补偿机制。',
+                jjwxc_romance: '请按晋江女频情感成长风格生成大纲，强调人物关系演变、情绪逻辑与人物自我成长。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n输出需包含：关系转折节点、心动与误解链、角色创伤修复线、主线价值表达。',
+                suspense: '请生成悬疑与反转导向的大纲，保证谜题层层推进、线索闭环、结局有解释力。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n输出应包含：主谜题、副谜题、误导线索、反转节点和真相揭示路径。',
+                sci_fi: '请按科幻冒险连载风格生成大纲，强调核心设定自洽、任务推进、文明冲突与技术代价。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n输出需包含：核心科学设定边界、阶段任务链、阵营冲突逻辑、终局抉择。'
+            },
+            chapter: {
+                balanced: '请基于以下信息拆解章节细纲，使用 ###fenge 作为章节分隔符。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n当前小说大纲：${outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n每章必须体现冲突推进、人物变化、章末钩子。',
+                qidian_fantasy: '请按起点玄幻长线节奏拆解章节细纲，使用 ###fenge 分隔。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n当前小说大纲：${outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n每章需包含：当前目标、遭遇阻碍、能力/资源变化、下一章新危机。',
+                qidian_urban: '请按起点都市成长节奏拆解章节细纲，使用 ###fenge 分隔。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n当前小说大纲：${outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n每章需包含：现实目标推进、人物博弈、代价与收益、章末事件升级。',
+                fanqie_fast: '请按番茄快节奏连载逻辑拆解章节细纲，使用 ###fenge 分隔。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n当前小说大纲：${outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n每章需包含：开场抓点、中段冲突、结尾钩子，且尽量避免信息空转。',
+                character_growth: '请按角色成长优先的思路拆解章节细纲，使用 ###fenge 分隔。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n当前小说大纲：${outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n每章需说明：角色目标、阻碍、变化、下章新目标。',
+                suspense: '请按悬疑推理逻辑拆解章节细纲，使用 ###fenge 分隔。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n当前小说大纲：${outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n每章需包含：线索投放、误导信息、调查推进、阶段真相与新疑点。',
+                sci_fi: '请按科幻冒险任务链拆解章节细纲，使用 ###fenge 分隔。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n当前小说大纲：${outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n每章需包含：任务目标、设定冲突、技术代价或风险、下一阶段任务触发。'
+            },
+            content: {
+                immersive: '请基于以下信息写出沉浸感强、场景可视化明确的章节正文。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n总体大纲：${outline}\n当前章节细纲：${chapter_outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n要求：行动逻辑清晰，情绪递进自然，章末余味明显。',
+                qidian_fantasy: '请按起点玄幻爽文风格写本章正文：主角目标明确、冲突直接、升级反馈清晰。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n总体大纲：${outline}\n当前章节细纲：${chapter_outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n要求：每章至少有一个有效推进点（实力/资源/地位/关系之一）。',
+                qidian_urban: '请按起点都市成长风格写本章正文：现实感强，目标与代价并存，人物博弈有层次。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n总体大纲：${outline}\n当前章节细纲：${chapter_outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n要求：减少空泛叙述，强调具体行动与结果反馈。',
+                dialogue: '请基于以下信息写出对话驱动型章节正文，确保人物声音可区分。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n总体大纲：${outline}\n当前章节细纲：${chapter_outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n要求：通过对话推进冲突并体现人物关系变化。',
+                fanqie_fast: '请按番茄连载高可读风格写本章正文：开头快入戏，中段持续冲突，结尾留强钩子。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n总体大纲：${outline}\n当前章节细纲：${chapter_outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n要求：段落短、信息密度高，避免冗长铺垫。',
+                suspense: '请按悬疑推理风格写本章正文：线索可追踪、误导可解释、氛围持续紧张。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n总体大纲：${outline}\n当前章节细纲：${chapter_outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n要求：每章至少投放1条有效线索并带来1个新疑问。',
+                sci_fi: '请按科幻冒险风格写本章正文：设定表达简明，冲突来自任务与规则限制，推进稳定。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n总体大纲：${outline}\n当前章节细纲：${chapter_outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n要求：术语克制、逻辑闭环、情节服务人物选择。',
+                fast: '请基于以下信息写出快节奏、高信息密度的章节正文。\n\n小说类型：${novel_type}\n面向读者：${target_readers}\n故事时间：${story_time}\n故事地点：${story_location}\n总体大纲：${outline}\n当前章节细纲：${chapter_outline}\n背景设定：${background}\n人物设定：${characters}\n角色关系：${relationships}\n核心剧情：${plot}\n写作风格：${style}\n\n策略要求：\n${strategy_block}\n\n要求：尽快进入冲突，减少空转，保持持续推进。'
+            }
+        };
+
+        const promptTemplateSuites = {
+            balanced_general: {
+                label: '通用均衡',
+                outlineTemplate: 'balanced',
+                chapterTemplate: 'balanced',
+                contentTemplate: 'immersive',
+                defaultExtraRequirements: '保持设定自洽，不要在前3章一次性倾倒世界观；每章都要有可感知推进。'
+            },
+            qidian_fantasy: {
+                label: '起点男频玄幻',
+                outlineTemplate: 'qidian_fantasy',
+                chapterTemplate: 'qidian_fantasy',
+                contentTemplate: 'qidian_fantasy',
+                defaultExtraRequirements: '升级路线要清晰可量化；反派压迫要持续升级；每3-5章给一次阶段性爽点回报。'
+            },
+            qidian_urban: {
+                label: '起点都市成长',
+                outlineTemplate: 'qidian_urban',
+                chapterTemplate: 'qidian_urban',
+                contentTemplate: 'qidian_urban',
+                defaultExtraRequirements: '强化现实细节与行业规则；主角每次推进都要伴随代价；避免无动机打脸。'
+            },
+            fanqie_fast: {
+                label: '番茄快节奏爽文',
+                outlineTemplate: 'fanqie_fast',
+                chapterTemplate: 'fanqie_fast',
+                contentTemplate: 'fanqie_fast',
+                defaultExtraRequirements: '开篇3章必须高密度冲突；结尾高概率留钩子；信息呈现尽量短句化。'
+            },
+            jjwxc_romance: {
+                label: '晋江女频情感',
+                outlineTemplate: 'jjwxc_romance',
+                chapterTemplate: 'character_growth',
+                contentTemplate: 'dialogue',
+                defaultExtraRequirements: '重视情绪层次与关系拉扯；冲突不靠误会硬拖；关键关系节点要有行为证据。'
+            },
+            suspense_reversal: {
+                label: '悬疑反转',
+                outlineTemplate: 'suspense',
+                chapterTemplate: 'suspense',
+                contentTemplate: 'suspense',
+                defaultExtraRequirements: '所有线索都要可回溯；误导不等于欺骗读者；反转前要有至少两处前置铺垫。'
+            },
+            sci_fi_adventure: {
+                label: '科幻冒险',
+                outlineTemplate: 'sci_fi',
+                chapterTemplate: 'sci_fi',
+                contentTemplate: 'sci_fi',
+                defaultExtraRequirements: '科学设定只解释必要部分；冲突优先通过任务与选择呈现；避免连续术语堆砌。'
+            }
+        };
+
+        const LEGACY_DEFAULT_REQUIREMENTS = {
+            outline: [
+                '1. 提炼核心冲突，设计多重矛盾，确保剧情有持续拉力。',
+                '2. 规划 3-5 个重大转折点，并说明每个转折的触发原因。',
+                '3. 人物塑造要立体，给出主要角色目标、动机与成长弧光。',
+                '4. 设置悬念与伏笔，并标注回收节点，避免无效铺垫。',
+                '5. 节奏上保持张弛有度，避免平铺直叙或强行推进。',
+                '6. 输出要求（结构与字数建议）：故事梗概（约500字）、核心主题（约100字）、人物重点、情节脉络、爆点设计（3-5个）、高潮铺垫、结局构思（约200字）。'
+            ].join('\n'),
+            chapter: [
+                '1. 每章建议字数区间：3000-4000（可按项目实际调整）。',
+                '2. 每章都要有：开篇引子、推进事件、冲突/转折、章末钩子。',
+                '3. 每章要明确人物互动变化与情感/关系推进。',
+                '4. 场景转换要自然流畅，场景与氛围要服务剧情。',
+                '5. 保证每章具有独立吸引力，并为下章预留引子。',
+                '6. 使用 ###fenge 分隔章节，保持章节结构统一。',
+                '7. 章节输出格式建议固定为：章节标题；本章定位；出场人物；核心事件（开篇引子/冲突铺垫/高潮转折/章末悬念）；情感推进；人物刻画重点；伏笔设置。'
+            ].join('\n'),
+            content: [
+                '1. 强化沉浸感：视觉、听觉、触觉、心理四类细节要协同。',
+                '2. 对话要体现人物性格与关系，包含潜台词，避免同质化口吻。',
+                '3. 场景描写需突出关键细节并烘托氛围，避免堆砌。',
+                '4. 节奏上“该快快、该慢慢”，关键冲突段落要重点展开。',
+                '5. 情感刻画避免直白说教，用行动和细节推进情绪。',
+                '6. 结果要求：符合网文阅读习惯，爽点明确，避免模板化表达，人物个性鲜明。'
+            ].join('\n')
+        };
+
+        function getState() {
+            try {
+                const state = JSON.parse(localStorage.getItem(STORAGE_KEY));
+                return state || {};
+            } catch (error) {
+                return {};
+            }
+        }
+
+        function saveState(patch) {
+            const state = { ...getState(), ...patch };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        function setStatus(message) {
+            const el = document.getElementById('status');
+            if (el) el.textContent = message;
+        }
+
+        function setButtonLoading(button, loading, text = '处理中...') {
+            if (!button) return;
+            if (loading) {
+                if (!button.dataset.label) button.dataset.label = button.textContent;
+                button.disabled = true;
+                button.textContent = text;
+            } else {
+                button.disabled = false;
+                if (button.dataset.label) button.textContent = button.dataset.label;
+            }
+        }
+
+        async function fetchWithTimeout(url, options = {}, timeoutMs = 300000) {
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+            try {
+                return await fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                });
+            } catch (error) {
+                if (error && error.name === 'AbortError') {
+                    throw new Error('请求超时，请检查模型配置或稍后重试');
+                }
+                throw error;
+            } finally {
+                window.clearTimeout(timeoutId);
+            }
+        }
+
+        async function streamToTextarea(response, textarea) {
+            if (!response.ok) {
+                const err = await response.text();
+                throw new Error(err || '请求失败');
+            }
+            if (!response.body) throw new Error('当前浏览器不支持流式响应');
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                textarea.value = buffer;
+                textarea.scrollTop = textarea.scrollHeight;
+            }
+            return buffer;
+        }
+
+        function initBasicPage() {
+            const state = getState();
+            const detailPanel = document.getElementById('basic-details-panel');
+            const toggleButton = document.getElementById('btn-toggle-basic-details');
+            const detailKeys = ['background', 'characters', 'relationships', 'plot'];
+            const metaIds = ['novel-type', 'target-readers', 'story-time', 'story-location'];
+            const charactersEl = document.getElementById('characters');
+            const relationshipsEl = document.getElementById('relationships');
+            const plotEl = document.getElementById('plot');
+            const kbPicker = document.getElementById('kb-character-picker');
+            const kbCharacterTarget = document.getElementById('kb-character-target');
+            const btnInsertCharacter = document.getElementById('btn-insert-character');
+            const btnSyncAllCharacters = document.getElementById('btn-sync-all-characters');
+            const btnGoKnowledgeInline = document.getElementById('btn-go-knowledge-inline');
+            const kbCharacterHelp = document.getElementById('kb-character-help');
+            const kbPlotSource = document.getElementById('kb-plot-source');
+            const kbPlotPicker = document.getElementById('kb-plot-picker');
+            const btnInsertPlot = document.getElementById('btn-insert-plot');
+            const btnSyncPlotSource = document.getElementById('btn-sync-plot-source');
+            const kbPlotHelp = document.getElementById('kb-plot-help');
+            const roleOnboardTip = document.getElementById('role-onboard-tip');
+            const btnGoKnowledge = document.getElementById('btn-go-knowledge');
+            const btnHideRoleTip = document.getElementById('btn-hide-role-tip');
+
+            const plotCategoryMap = {
+                plotLines: '剧情线索',
+                timeline: '时间线',
+                worldSettings: '世界观',
+                locations: '地点空间'
+            };
+
+            function getKnowledgeCharacters() {
+                const latest = getState();
+                const knowledgeData = latest.knowledgeData || {};
+                return Array.isArray(knowledgeData.characters) ? knowledgeData.characters : [];
+            }
+
+            function getKnowledgeItems(categoryKey) {
+                const latest = getState();
+                const knowledgeData = latest.knowledgeData || {};
+                const list = knowledgeData[categoryKey];
+                return Array.isArray(list) ? list : [];
+            }
+
+            function formatCharacterLine(item) {
+                const tags = (item.tags || []).filter(Boolean);
+                const roleText = tags.length ? `（标签：${tags.join(' / ')}）` : '';
+                return `- ${item.title}${roleText}${item.description ? `：${item.description}` : ''}`;
+            }
+
+            function appendLine(textarea, line) {
+                if (!textarea || !line) return;
+                const current = textarea.value.trim();
+                const next = current ? `${current}\n${line}` : line;
+                textarea.value = next;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            function upsertKnowledgeGuideTip() {
+                const latest = getState();
+                const tipClosed = Boolean(latest.role_onboard_tip_closed);
+                const hasCharacters = getKnowledgeCharacters().length > 0;
+                if (!roleOnboardTip) return;
+                roleOnboardTip.style.display = (!tipClosed || !hasCharacters) ? 'block' : 'none';
+            }
+
+            function renderKnowledgeCharacterPicker() {
+                if (!kbPicker) return;
+                const characters = getKnowledgeCharacters();
+                kbPicker.innerHTML = '<option value="">请选择知识库人物</option>';
+                characters.forEach((item, index) => {
+                    const option = document.createElement('option');
+                    option.value = String(index);
+                    option.textContent = item.title || `人物 ${index + 1}`;
+                    kbPicker.appendChild(option);
+                });
+
+                if (kbCharacterHelp) {
+                    kbCharacterHelp.textContent = characters.length
+                        ? `当前已发现 ${characters.length} 个知识库人物，可直接加入人物设定或角色关系。`
+                        : '若下拉为空，请先到“高级设置 → 知识库 → 人物档案”新增条目。';
+                }
+
+                upsertKnowledgeGuideTip();
+            }
+
+            function formatPlotLine(item, categoryKey) {
+                const categoryLabel = plotCategoryMap[categoryKey] || '知识库';
+                const tags = (item.tags || []).filter(Boolean);
+                const tagText = tags.length ? `（标签：${tags.join(' / ')}）` : '';
+                const desc = item.description ? `：${item.description}` : '';
+                return `- [${categoryLabel}] ${item.title}${tagText}${desc}`;
+            }
+
+            function renderPlotPicker() {
+                if (!kbPlotSource || !kbPlotPicker) return;
+                const categoryKey = kbPlotSource.value || 'plotLines';
+                const items = getKnowledgeItems(categoryKey);
+                const label = plotCategoryMap[categoryKey] || '该分类';
+
+                kbPlotPicker.innerHTML = '<option value="">请选择知识库条目</option>';
+                items.forEach((item, index) => {
+                    const option = document.createElement('option');
+                    option.value = String(index);
+                    option.textContent = item.title || `条目 ${index + 1}`;
+                    kbPlotPicker.appendChild(option);
+                });
+
+                if (kbPlotHelp) {
+                    kbPlotHelp.textContent = items.length
+                        ? `${label}当前有 ${items.length} 个条目，可写入“核心剧情”作为主线素材。`
+                        : `${label}暂无条目，请先到“高级设置 → 知识库”补充。`;
+                }
+            }
+
+            function openKnowledgePage() {
+                window.location.href = "{{ url_for('main.workspace_page', page='advanced-knowledge') }}";
+            }
+
+            function syncAllCharactersToTextarea() {
+                const characters = getKnowledgeCharacters();
+                if (!characters.length) {
+                    setStatus('知识库人物为空，请先到“高级设置 → 知识库 → 人物档案”新增角色');
+                    return;
+                }
+
+                const existing = (charactersEl.value || '');
+                const lines = characters
+                    .filter((item) => item && item.title && !existing.includes(item.title))
+                    .map((item) => formatCharacterLine(item));
+
+                if (!lines.length) {
+                    setStatus('人物设定中已包含知识库角色，无需重复同步');
+                    return;
+                }
+
+                const prefix = existing.trim() ? `${existing.trim()}\n` : '';
+                charactersEl.value = `${prefix}${lines.join('\n')}`;
+                charactersEl.dispatchEvent(new Event('input', { bubbles: true }));
+                setStatus(`已同步 ${lines.length} 位知识库人物到人物设定`);
+            }
+
+            function insertSelectedCharacterByTarget() {
+                const index = parseInt(kbPicker.value, 10);
+                const characters = getKnowledgeCharacters();
+                const item = Number.isInteger(index) ? characters[index] : null;
+                if (!item) {
+                    setStatus('请先选择一个知识库人物');
+                    return;
+                }
+
+                const target = (kbCharacterTarget && kbCharacterTarget.value) || 'characters';
+                if (target === 'relationships') {
+                    const tags = (item.tags || []).filter(Boolean);
+                    const relationHint = tags.length ? `（标签：${tags.join(' / ')}）` : '';
+                    const line = `- ${item.title}${relationHint}：与【待补充角色】的关系是【待补充关系】`;
+                    appendLine(relationshipsEl, line);
+                    setStatus(`已将“${item.title}”写入角色关系`);
+                    return;
+                }
+
+                appendLine(charactersEl, formatCharacterLine(item));
+                setStatus(`已将“${item.title}”写入人物设定`);
+            }
+
+            function insertSelectedPlotItem() {
+                const categoryKey = (kbPlotSource && kbPlotSource.value) || 'plotLines';
+                const index = parseInt(kbPlotPicker.value, 10);
+                const items = getKnowledgeItems(categoryKey);
+                const item = Number.isInteger(index) ? items[index] : null;
+                if (!item) {
+                    setStatus('请先选择一个知识库条目');
+                    return;
+                }
+                appendLine(plotEl, formatPlotLine(item, categoryKey));
+                setStatus(`已将“${item.title}”写入核心剧情`);
+            }
+
+            function syncCurrentPlotCategory() {
+                const categoryKey = (kbPlotSource && kbPlotSource.value) || 'plotLines';
+                const items = getKnowledgeItems(categoryKey);
+                if (!items.length) {
+                    setStatus('该分类暂无可同步条目，请先到知识库新增');
+                    return;
+                }
+
+                const existing = (plotEl.value || '');
+                const lines = items
+                    .filter((item) => item && item.title && !existing.includes(item.title))
+                    .map((item) => formatPlotLine(item, categoryKey));
+
+                if (!lines.length) {
+                    setStatus('核心剧情中已包含该分类条目，无需重复同步');
+                    return;
+                }
+
+                const prefix = existing.trim() ? `${existing.trim()}\n` : '';
+                plotEl.value = `${prefix}${lines.join('\n')}`;
+                plotEl.dispatchEvent(new Event('input', { bubbles: true }));
+                const categoryLabel = plotCategoryMap[categoryKey] || '该分类';
+                setStatus(`已同步 ${lines.length} 条${categoryLabel}到核心剧情`);
+            }
+
+            function hasDetailContent() {
+                return detailKeys.some((key) => (state[key] || '').trim());
+            }
+
+            function setDetailPanelOpen(open) {
+                if (!detailPanel || !toggleButton) return;
+                detailPanel.classList.toggle('open', open);
+                toggleButton.textContent = open ? '收起详细设定' : '展开详细设定';
+                saveState({ basic_details_open: open });
+            }
+
+            function getMetaValue(id) {
+                const select = document.getElementById(id);
+                const custom = document.getElementById(`${id}-custom`);
+                if (!select) return '';
+                if (select.value === '__custom__') {
+                    return (custom && custom.value ? custom.value.trim() : '');
+                }
+                return select.value || '';
+            }
+
+            function setMetaValue(id, value) {
+                const select = document.getElementById(id);
+                const custom = document.getElementById(`${id}-custom`);
+                if (!select) return;
+
+                const optionValues = Array.from(select.options).map((opt) => opt.value);
+                if (value && optionValues.includes(value)) {
+                    select.value = value;
+                    if (custom) {
+                        custom.style.display = 'none';
+                        custom.value = '';
+                    }
+                    return;
+                }
+
+                if (value) {
+                    select.value = '__custom__';
+                    if (custom) {
+                        custom.style.display = 'block';
+                        custom.value = value;
+                    }
+                    return;
+                }
+
+                select.value = '';
+                if (custom) {
+                    custom.style.display = 'none';
+                    custom.value = '';
+                }
+            }
+
+            function persistMetaValue(id) {
+                const stateKey = id.replace(/-/g, '_');
+                saveState({ [stateKey]: getMetaValue(id) });
+                setStatus('已自动保存作品设定');
+            }
+
+            metaIds.forEach((id) => {
+                const select = document.getElementById(id);
+                const custom = document.getElementById(`${id}-custom`);
+                if (!select) return;
+
+                const stateKey = id.replace(/-/g, '_');
+                setMetaValue(id, state[stateKey] || '');
+
+                select.addEventListener('change', () => {
+                    if (custom) {
+                        const useCustom = select.value === '__custom__';
+                        custom.style.display = useCustom ? 'block' : 'none';
+                        if (!useCustom) custom.value = '';
+                        if (useCustom) custom.focus();
+                    }
+                    persistMetaValue(id);
+                });
+
+                if (custom) {
+                    custom.addEventListener('input', () => persistMetaValue(id));
+                    custom.addEventListener('change', () => persistMetaValue(id));
+                }
+            });
+
+            ['background', 'characters', 'relationships', 'plot'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const stateKey = id.replace(/-/g, '_');
+                el.value = state[stateKey] || '';
+                el.addEventListener('input', () => {
+                    saveState({ [stateKey]: el.value });
+                    setStatus('已自动保存作品设定');
+
+                    if (detailKeys.includes(stateKey) && detailPanel && !detailPanel.classList.contains('open')) {
+                        setDetailPanelOpen(true);
+                    }
+                });
+                el.addEventListener('change', () => {
+                    saveState({ [stateKey]: el.value });
+                    setStatus('已自动保存作品设定');
+                });
+            });
+
+            if (toggleButton) {
+                toggleButton.addEventListener('click', () => {
+                    const isOpen = detailPanel && detailPanel.classList.contains('open');
+                    setDetailPanelOpen(!isOpen);
+                });
+            }
+
+            if (btnGoKnowledgeInline) {
+                btnGoKnowledgeInline.addEventListener('click', openKnowledgePage);
+            }
+
+            if (btnGoKnowledge) {
+                btnGoKnowledge.addEventListener('click', openKnowledgePage);
+            }
+
+            if (btnHideRoleTip) {
+                btnHideRoleTip.addEventListener('click', () => {
+                    saveState({ role_onboard_tip_closed: true });
+                    if (roleOnboardTip) roleOnboardTip.style.display = 'none';
+                });
+            }
+
+            if (btnInsertCharacter) {
+                btnInsertCharacter.addEventListener('click', insertSelectedCharacterByTarget);
+            }
+
+            if (btnSyncAllCharacters) {
+                btnSyncAllCharacters.addEventListener('click', syncAllCharactersToTextarea);
+            }
+
+            if (kbPlotSource) {
+                kbPlotSource.addEventListener('change', renderPlotPicker);
+            }
+
+            if (btnInsertPlot) {
+                btnInsertPlot.addEventListener('click', insertSelectedPlotItem);
+            }
+
+            if (btnSyncPlotSource) {
+                btnSyncPlotSource.addEventListener('click', syncCurrentPlotCategory);
+            }
+
+            renderKnowledgeCharacterPicker();
+            renderPlotPicker();
+
+            setDetailPanelOpen(Boolean(state.basic_details_open) || hasDetailContent());
+        }
+
+        function initPromptPage() {
+            const state = getState();
+            const narrativePerspective = document.getElementById('narrative-perspective');
+            const pacingLevel = document.getElementById('pacing-level');
+            const conflictLevel = document.getElementById('conflict-level');
+            const emotionLevel = document.getElementById('emotion-level');
+            const emotionLevelCustom = document.getElementById('emotion-level-custom');
+            const hookStrength = document.getElementById('hook-strength');
+            const hookStrengthCustom = document.getElementById('hook-strength-custom');
+            const languageStyle = document.getElementById('language-style');
+            const languageStyleCustom = document.getElementById('language-style-custom');
+            const customRequirements = document.getElementById('custom-strategy-requirements');
+            const btnApply = document.getElementById('btn-apply-strategy');
+            const btnReset = document.getElementById('btn-reset-strategy');
+            const btnToggleManual = document.getElementById('btn-toggle-manual-prompts');
+            const manualPanel = document.getElementById('manual-prompts-panel');
+
+            const outlinePromptEl = document.getElementById('outline-prompt');
+            const chapterPromptEl = document.getElementById('chapter-prompt');
+            const contentPromptEl = document.getElementById('content-prompt');
+            const manualPromptTextareas = [outlinePromptEl, chapterPromptEl, contentPromptEl];
+
+            const outlineStrategyList = document.getElementById('outline-strategy-list');
+            const chapterStrategyList = document.getElementById('chapter-strategy-list');
+            const contentStrategyList = document.getElementById('content-strategy-list');
+            const outlineCustomInput = document.getElementById('outline-custom-strategy-input');
+            const chapterCustomInput = document.getElementById('chapter-custom-strategy-input');
+            const contentCustomInput = document.getElementById('content-custom-strategy-input');
+            const btnAddOutlineStrategy = document.getElementById('btn-add-outline-strategy');
+            const btnAddChapterStrategy = document.getElementById('btn-add-chapter-strategy');
+            const btnAddContentStrategy = document.getElementById('btn-add-content-strategy');
+
+            const stageLabels = {
+                outline: '大纲',
+                chapter: '章节',
+                content: '正文'
+            };
+            let activeNumericEditKey = '';
+            const numericEditDraft = {};
+
+            const stageDefaultTemplates = {
+                outline: [
+                    '提炼核心冲突，设计多重矛盾，确保剧情有持续拉力。',
+                    '规划 3-5 个重大转折点，并说明每个转折的触发原因。',
+                    '人物塑造要立体，给出主要角色目标、动机与成长弧光。',
+                    '设置悬念与伏笔，并标注回收节点，避免无效铺垫。',
+                    '节奏上保持张弛有度，避免平铺直叙或强行推进。',
+                    '输出要求（结构与字数建议）：故事梗概（约500字）、核心主题（约100字）、人物重点、情节脉络、爆点设计（3-5个）、高潮铺垫、结局构思（约200字）。',
+                    '输出应突出：开篇钩子、每卷爆点、短周期冲突升级路径。'
+                ],
+                chapter: [
+                    '每章建议字数区间：3000-4000（可按项目实际调整）。',
+                    '每章都要有：开篇引子、推进事件、冲突/转折、章末钩子。',
+                    '每章要明确人物互动变化与情感/关系推进。',
+                    '场景转换要自然流畅，场景与氛围要服务剧情。',
+                    '保证每章具有独立吸引力，并为下章预留引子。',
+                    '使用 ###fenge 分隔章节，保持章节结构统一。',
+                    '章节输出格式建议固定为：章节标题；本章定位；出场人物；核心事件（开篇引子/冲突铺垫/高潮转折/章末悬念）；情感推进；人物刻画重点；伏笔设置。'
+                ],
+                content: [
+                    '强化沉浸感：视觉、听觉、触觉、心理四类细节要协同。',
+                    '对话要体现人物性格与关系，包含潜台词，避免同质化口吻。',
+                    '场景描写需突出关键细节并烘托氛围，避免堆砌。',
+                    '节奏上“该快快、该慢慢”，关键冲突段落要重点展开。',
+                    '情感刻画避免直白说教，用行动和细节推进情绪。',
+                    '结果要求：符合网文阅读习惯，爽点明确，避免模板化表达，人物个性鲜明。'
+                ]
+            };
+
+            const strategyDefaults = {
+                selectedStageStrategies: {
+                    outline: stageDefaultTemplates.outline.slice(),
+                    chapter: stageDefaultTemplates.chapter.slice(),
+                    content: stageDefaultTemplates.content.slice()
+                },
+                customStageStrategies: {
+                    outline: [],
+                    chapter: [],
+                    content: []
+                },
+                numericOverrides: {
+                    outline: {},
+                    chapter: {},
+                    content: {}
+                },
+                narrativePerspective: '',
+                pacingLevel: '',
+                conflictLevel: '',
+                emotionLevel: '',
+                hookStrength: '',
+                languageStyle: '',
+                customRequirements: ''
+            };
+
+            const strategy = {
+                ...strategyDefaults,
+                ...(state.promptStrategy || {}),
+                selectedStageStrategies: {
+                    ...strategyDefaults.selectedStageStrategies,
+                    ...((state.promptStrategy && state.promptStrategy.selectedStageStrategies) || {})
+                },
+                customStageStrategies: {
+                    ...strategyDefaults.customStageStrategies,
+                    ...((state.promptStrategy && state.promptStrategy.customStageStrategies) || {})
+                },
+                numericOverrides: {
+                    ...strategyDefaults.numericOverrides,
+                    ...((state.promptStrategy && state.promptStrategy.numericOverrides) || {})
+                }
+            };
+
+            function setupOptionalSelect(selectEl, customEl, storedValue = '') {
+                if (!selectEl || !customEl) return;
+
+                const optionValues = Array.from(selectEl.options).map((opt) => opt.value);
+                if (storedValue && optionValues.includes(storedValue)) {
+                    selectEl.value = storedValue;
+                    customEl.style.display = 'none';
+                    customEl.value = '';
+                    return;
+                }
+
+                if (storedValue) {
+                    selectEl.value = '__custom__';
+                    customEl.style.display = 'block';
+                    customEl.value = storedValue;
+                    return;
+                }
+
+                selectEl.value = '';
+                customEl.style.display = 'none';
+                customEl.value = '';
+            }
+
+            function readOptionalSelectValue(selectEl, customEl) {
+                if (!selectEl) return '';
+                if (selectEl.value === '__custom__') {
+                    return customEl && customEl.value ? customEl.value.trim() : '';
+                }
+                return selectEl.value || '';
+            }
+
+            function normalizeTextList(list) {
+                if (!Array.isArray(list)) return [];
+                return list.map((s) => (s || '').trim()).filter(Boolean);
+            }
+
+            function getStageNumberOverride(stageKey, defaultIndex, numberIndex) {
+                const stageOverrides = strategy.numericOverrides[stageKey] || {};
+                const rowOverrides = stageOverrides[String(defaultIndex)] || {};
+                return rowOverrides[String(numberIndex)] || '';
+            }
+
+            function setStageNumberOverride(stageKey, defaultIndex, numberIndex, value) {
+                if (!strategy.numericOverrides[stageKey]) strategy.numericOverrides[stageKey] = {};
+                if (!strategy.numericOverrides[stageKey][String(defaultIndex)]) {
+                    strategy.numericOverrides[stageKey][String(defaultIndex)] = {};
+                }
+                strategy.numericOverrides[stageKey][String(defaultIndex)][String(numberIndex)] = value;
+            }
+
+            function clearStageNumberOverride(stageKey, defaultIndex, numberIndex) {
+                const stageOverrides = strategy.numericOverrides[stageKey];
+                if (!stageOverrides) return;
+                const rowOverrides = stageOverrides[String(defaultIndex)];
+                if (!rowOverrides) return;
+                delete rowOverrides[String(numberIndex)];
+                if (!Object.keys(rowOverrides).length) {
+                    delete stageOverrides[String(defaultIndex)];
+                }
+            }
+
+            function makeNumericEditKey(stageKey, defaultIndex) {
+                return `${stageKey}:${defaultIndex}`;
+            }
+
+            function getDefaultTextWithOverrides(stageKey, defaultIndex) {
+                const template = (stageDefaultTemplates[stageKey] || [])[defaultIndex] || '';
+                let numberCursor = 0;
+                return template.replace(/\d+/g, (matched) => {
+                    const override = getStageNumberOverride(stageKey, defaultIndex, numberCursor);
+                    numberCursor += 1;
+                    return override || matched;
+                });
+            }
+
+            function buildStageStrategyItems(stageKey) {
+                const defaultItems = (stageDefaultTemplates[stageKey] || []).map((_, index) => ({
+                    text: getDefaultTextWithOverrides(stageKey, index),
+                    isCustom: false,
+                    defaultIndex: index
+                }));
+
+                const customs = normalizeTextList(strategy.customStageStrategies[stageKey]);
+                const existingSet = new Set(defaultItems.map((item) => item.text));
+                const customItems = customs
+                    .filter((item) => !existingSet.has(item))
+                    .map((item) => ({ text: item, isCustom: true, defaultIndex: -1 }));
+
+                return [...defaultItems, ...customItems];
+            }
+
+            function renderStageStrategy(stageKey, containerEl) {
+                const items = buildStageStrategyItems(stageKey);
+                const selectedSet = new Set(normalizeTextList(strategy.selectedStageStrategies[stageKey]));
+                const customSet = new Set(normalizeTextList(strategy.customStageStrategies[stageKey]));
+                containerEl.innerHTML = '';
+
+                items.forEach((item) => {
+                    const text = item.text;
+                    const row = document.createElement('div');
+                    row.className = 'strategy-option';
+
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.checked = selectedSet.has(text);
+                    input.dataset.strategy = text;
+                    input.addEventListener('change', () => {
+                        saveState({ promptStrategy: collectStrategyFromUI() });
+                        setStatus(`已更新${stageLabels[stageKey]}策略，可点击“应用到提示词”生效`);
+                    });
+
+                    const span = document.createElement('span');
+                    span.className = 'text';
+                    span.textContent = text;
+
+                    row.appendChild(input);
+                    row.appendChild(span);
+
+                    if (!item.isCustom && item.defaultIndex >= 0) {
+                        const template = (stageDefaultTemplates[stageKey] || [])[item.defaultIndex] || '';
+                        const numberMatches = Array.from(template.matchAll(/\d+/g));
+                        if (numberMatches.length) {
+                            row.classList.add('has-numeric');
+                            const editKey = makeNumericEditKey(stageKey, item.defaultIndex);
+                            const isEditing = activeNumericEditKey === editKey;
+
+                            if (!isEditing) {
+                                const badges = document.createElement('div');
+                                badges.className = 'strategy-param-badges';
+                                numberMatches.forEach((match, idx) => {
+                                    const badge = document.createElement('span');
+                                    badge.className = 'param-badge';
+                                    const currentValue = getStageNumberOverride(stageKey, item.defaultIndex, idx) || match[0];
+                                    badge.textContent = `[${currentValue}]`;
+                                    badges.appendChild(badge);
+                                });
+
+                                badges.addEventListener('click', () => {
+                                    activeNumericEditKey = editKey;
+                                    numericEditDraft[editKey] = {};
+                                    numberMatches.forEach((match, idx) => {
+                                        numericEditDraft[editKey][String(idx)] = getStageNumberOverride(stageKey, item.defaultIndex, idx) || match[0];
+                                    });
+                                    renderStageStrategy(stageKey, containerEl);
+                                });
+                                row.appendChild(badges);
+                            } else {
+                                const editor = document.createElement('div');
+                                editor.className = 'strategy-number-editor';
+
+                                numberMatches.forEach((match, idx) => {
+                                    const chip = document.createElement('div');
+                                    chip.className = 'num-chip';
+
+                                    const label = document.createElement('span');
+                                    label.textContent = `数字${idx + 1}`;
+
+                                    const inputNum = document.createElement('input');
+                                    inputNum.type = 'number';
+                                    inputNum.min = '0';
+                                    inputNum.step = '1';
+                                    inputNum.value = (numericEditDraft[editKey] && numericEditDraft[editKey][String(idx)]) || match[0];
+                                    inputNum.addEventListener('input', () => {
+                                        if (!numericEditDraft[editKey]) numericEditDraft[editKey] = {};
+                                        numericEditDraft[editKey][String(idx)] = (inputNum.value || '').trim();
+                                    });
+
+                                    chip.appendChild(label);
+                                    chip.appendChild(inputNum);
+                                    editor.appendChild(chip);
+                                });
+
+                                const actions = document.createElement('div');
+                                actions.className = 'strategy-number-actions';
+
+                                const btnConfirm = document.createElement('button');
+                                btnConfirm.type = 'button';
+                                btnConfirm.textContent = '确认';
+                                btnConfirm.className = 'primary';
+                                btnConfirm.addEventListener('click', () => {
+                                    const prevText = getDefaultTextWithOverrides(stageKey, item.defaultIndex);
+                                    numberMatches.forEach((match, idx) => {
+                                        const raw = (numericEditDraft[editKey] && numericEditDraft[editKey][String(idx)] !== undefined)
+                                            ? numericEditDraft[editKey][String(idx)]
+                                            : (getStageNumberOverride(stageKey, item.defaultIndex, idx) || match[0]);
+                                        const value = String(raw || '').trim();
+                                        if (!value || value === match[0]) {
+                                            clearStageNumberOverride(stageKey, item.defaultIndex, idx);
+                                        } else {
+                                            setStageNumberOverride(stageKey, item.defaultIndex, idx, value);
+                                        }
+                                    });
+
+                                    const nextText = getDefaultTextWithOverrides(stageKey, item.defaultIndex);
+                                    strategy.selectedStageStrategies[stageKey] = normalizeTextList(strategy.selectedStageStrategies[stageKey])
+                                        .map((selectedText) => (selectedText === prevText ? nextText : selectedText));
+
+                                    delete numericEditDraft[editKey];
+                                    activeNumericEditKey = '';
+                                    renderStageStrategy(stageKey, containerEl);
+                                    saveState({ promptStrategy: collectStrategyFromUI() });
+                                    setStatus(`已更新${stageLabels[stageKey]}策略中的数字参数`);
+                                });
+
+                                const btnCancel = document.createElement('button');
+                                btnCancel.type = 'button';
+                                btnCancel.textContent = '取消';
+                                btnCancel.addEventListener('click', () => {
+                                    delete numericEditDraft[editKey];
+                                    activeNumericEditKey = '';
+                                    renderStageStrategy(stageKey, containerEl);
+                                });
+
+                                actions.appendChild(btnConfirm);
+                                actions.appendChild(btnCancel);
+                                editor.appendChild(actions);
+                                row.appendChild(editor);
+                            }
+                        }
+                    }
+
+                    if (customSet.has(text)) {
+                        const removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.className = 'remove-custom-btn';
+                        removeBtn.textContent = '删除';
+                        removeBtn.addEventListener('click', () => {
+                            strategy.customStageStrategies[stageKey] = normalizeTextList(strategy.customStageStrategies[stageKey])
+                                .filter((item) => item !== text);
+                            strategy.selectedStageStrategies[stageKey] = normalizeTextList(strategy.selectedStageStrategies[stageKey])
+                                .filter((item) => item !== text);
+                            renderStageStrategy(stageKey, containerEl);
+                            saveState({ promptStrategy: collectStrategyFromUI() });
+                            setStatus(`已删除自定义${stageLabels[stageKey]}策略`);
+                        });
+                        row.appendChild(removeBtn);
+                    }
+
+                    containerEl.appendChild(row);
+                });
+            }
+
+            function getSelectedStrategiesFromContainer(containerEl) {
+                return Array.from(containerEl.querySelectorAll('input[type="checkbox"]:checked'))
+                    .map((input) => (input.dataset.strategy || '').trim())
+                    .filter(Boolean);
+            }
+
+            function collectStrategyFromUI() {
+                return {
+                    selectedStageStrategies: {
+                        outline: getSelectedStrategiesFromContainer(outlineStrategyList),
+                        chapter: getSelectedStrategiesFromContainer(chapterStrategyList),
+                        content: getSelectedStrategiesFromContainer(contentStrategyList)
+                    },
+                    customStageStrategies: {
+                        outline: normalizeTextList(strategy.customStageStrategies.outline),
+                        chapter: normalizeTextList(strategy.customStageStrategies.chapter),
+                        content: normalizeTextList(strategy.customStageStrategies.content)
+                    },
+                    numericOverrides: {
+                        outline: { ...(strategy.numericOverrides.outline || {}) },
+                        chapter: { ...(strategy.numericOverrides.chapter || {}) },
+                        content: { ...(strategy.numericOverrides.content || {}) }
+                    },
+                    narrativePerspective: narrativePerspective.value,
+                    pacingLevel: pacingLevel.value,
+                    conflictLevel: conflictLevel.value,
+                    emotionLevel: readOptionalSelectValue(emotionLevel, emotionLevelCustom),
+                    hookStrength: readOptionalSelectValue(hookStrength, hookStrengthCustom),
+                    languageStyle: readOptionalSelectValue(languageStyle, languageStyleCustom),
+                    customRequirements: customRequirements.value
+                };
+            }
+
+            function addCustomStageStrategy(stageKey, inputEl, containerEl) {
+                const text = (inputEl.value || '').trim();
+                if (!text) {
+                    setStatus('请输入要新增的策略内容');
+                    return;
+                }
+
+                const allTexts = buildStageStrategyItems(stageKey).map((item) => item.text);
+                if (allTexts.includes(text)) {
+                    setStatus('该策略已存在，无需重复添加');
+                    return;
+                }
+
+                strategy.customStageStrategies[stageKey] = normalizeTextList(strategy.customStageStrategies[stageKey]);
+                strategy.customStageStrategies[stageKey].push(text);
+                strategy.selectedStageStrategies[stageKey] = normalizeTextList(strategy.selectedStageStrategies[stageKey]);
+                strategy.selectedStageStrategies[stageKey].push(text);
+
+                renderStageStrategy(stageKey, containerEl);
+                saveState({ promptStrategy: collectStrategyFromUI() });
+                inputEl.value = '';
+                setStatus(`已新增并勾选${stageLabels[stageKey]}策略`);
+            }
+
+            function narrativeStrategyBlockText(data) {
+                const perspectiveMap = {
+                    first: '叙事视角：第一人称，强调代入感。',
+                    third: '叙事视角：第三人称，强调信息组织与整体推进。',
+                    multi: '叙事视角：多视角切换，确保视角边界清晰。',
+                };
+                const pacingMap = {
+                    slow: '节奏要求：慢热铺垫，前期重氛围与关系建立。',
+                    balanced: '节奏要求：均衡推进，冲突与铺垫比例适中。',
+                    fast: '节奏要求：快节奏推进，尽快进入核心冲突。',
+                };
+                const conflictMap = {
+                    low: '冲突强度：轻冲突，以关系与成长为主。',
+                    mid: '冲突强度：中等冲突，确保每章有明确推进。',
+                    high: '冲突强度：高冲突，提升对抗与反转频率。',
+                };
+                const emotionMap = {
+                    low: '情感浓度：克制表达，以细节递进。',
+                    mid: '情感浓度：适中表达，情绪与剧情并重。',
+                    high: '情感浓度：高张力表达，强化情绪爆发节点。',
+                };
+                const hookMap = {
+                    light: '章末钩子：轻钩子，以期待感收束。',
+                    mid: '章末钩子：中钩子，留悬念并推动下章阅读。',
+                    strong: '章末钩子：强钩子，以悬念或危机收束。',
+                };
+                const languageMap = {
+                    plain: '语言风格：简洁直接，减少修辞负担。',
+                    balanced: '语言风格：通俗均衡，兼顾可读性与表现力。',
+                    literary: '语言风格：偏文学化，增强描写与意象。'
+                };
+
+                const lines = [];
+
+                if (data.narrativePerspective) {
+                    lines.push(perspectiveMap[data.narrativePerspective] || `叙事视角：${data.narrativePerspective}`);
+                }
+
+                if (data.languageStyle) {
+                    lines.push(languageMap[data.languageStyle] || `语言风格：${data.languageStyle}`);
+                }
+
+                if (data.pacingLevel) {
+                    lines.push(pacingMap[data.pacingLevel] || `节奏要求：${data.pacingLevel}`);
+                }
+
+                if (data.conflictLevel) {
+                    lines.push(conflictMap[data.conflictLevel] || `冲突强度：${data.conflictLevel}`);
+                }
+
+                if (data.emotionLevel) {
+                    lines.push(emotionMap[data.emotionLevel] || `情感浓度：${data.emotionLevel}`);
+                }
+
+                if (data.hookStrength) {
+                    lines.push(hookMap[data.hookStrength] || `章末钩子：${data.hookStrength}`);
+                }
+
+                if (!lines.length) {
+                    lines.push('创作要求：不额外限定叙事视角、语言风格、节奏、冲突、情感浓度与章末钩子。');
+                }
+
+                return lines.join('\n');
+            }
+
+            function buildStageStrategyBlock(data, stageKey) {
+                const list = normalizeTextList((data.selectedStageStrategies && data.selectedStageStrategies[stageKey]) || []);
+                if (!list.length) {
+                    throw new Error(`请至少勾选 1 条${stageLabels[stageKey]}策略`);
+                }
+                return list.map((item, index) => `${index + 1}. ${item}`).join('\n');
+            }
+
+            function applyStrategyToPrompts(fromUi = true) {
+                const next = fromUi ? collectStrategyFromUI() : strategy;
+                const baseNarrativeBlock = narrativeStrategyBlockText(next);
+                let outlineStrategyBlock = '';
+                let chapterStrategyBlock = '';
+                let contentStrategyBlock = '';
+
+                try {
+                    outlineStrategyBlock = buildStageStrategyBlock(next, 'outline');
+                    chapterStrategyBlock = buildStageStrategyBlock(next, 'chapter');
+                    contentStrategyBlock = buildStageStrategyBlock(next, 'content');
+                } catch (error) {
+                    setStatus(error.message);
+                    return;
+                }
+
+                function composeStageBlock(stage) {
+                    const blocks = [baseNarrativeBlock];
+                    if (stage === 'outline') {
+                        blocks.push(`大纲策略（用户选择）：\n${outlineStrategyBlock}`);
+                    } else if (stage === 'chapter') {
+                        blocks.push(`章节策略（用户选择）：\n${chapterStrategyBlock}`);
+                    } else {
+                        blocks.push(`正文策略（用户选择）：\n${contentStrategyBlock}`);
+                    }
+                    if (next.customRequirements && next.customRequirements.trim()) {
+                        blocks.push(`用户追加要求：\n${next.customRequirements.trim()}`);
+                    }
+                    return blocks.join('\n\n');
+                }
+
+                const outlineBase = promptTemplateLibrary.outline.balanced || defaultPrompts.outlinePrompt;
+                const chapterBase = promptTemplateLibrary.chapter.balanced || defaultPrompts.chapterPrompt;
+                const contentBase = promptTemplateLibrary.content.immersive || defaultPrompts.contentPrompt;
+
+                outlinePromptEl.value = outlineBase.replace('${strategy_block}', composeStageBlock('outline'));
+                chapterPromptEl.value = chapterBase.replace('${strategy_block}', composeStageBlock('chapter'));
+                contentPromptEl.value = contentBase.replace('${strategy_block}', composeStageBlock('content'));
+
+                saveState({
+                    promptStrategy: next,
+                    outlinePrompt: outlinePromptEl.value,
+                    chapterPrompt: chapterPromptEl.value,
+                    contentPrompt: contentPromptEl.value
+                });
+                setStatus('已按用户选择策略生成提示词');
+            }
+
+            function setManualPanelOpen(open) {
+                if (!manualPanel || !btnToggleManual) return;
+                manualPanel.classList.toggle('open', open);
+                btnToggleManual.textContent = open ? '收起高级提示词编辑' : '展开高级提示词编辑';
+                saveState({ manual_prompts_open: open });
+            }
+
+            narrativePerspective.value = strategy.narrativePerspective;
+            pacingLevel.value = strategy.pacingLevel;
+            conflictLevel.value = strategy.conflictLevel;
+            setupOptionalSelect(emotionLevel, emotionLevelCustom, strategy.emotionLevel);
+            setupOptionalSelect(hookStrength, hookStrengthCustom, strategy.hookStrength);
+            setupOptionalSelect(languageStyle, languageStyleCustom, strategy.languageStyle);
+            customRequirements.value = strategy.customRequirements;
+
+            renderStageStrategy('outline', outlineStrategyList);
+            renderStageStrategy('chapter', chapterStrategyList);
+            renderStageStrategy('content', contentStrategyList);
+
+            outlinePromptEl.value = state.outlinePrompt || '';
+            chapterPromptEl.value = state.chapterPrompt || '';
+            contentPromptEl.value = state.contentPrompt || '';
+            manualPromptTextareas.forEach((el) => {
+                if (!el) return;
+                el.readOnly = true;
+                el.classList.add('manual-readonly');
+            });
+
+            if (!outlinePromptEl.value || !chapterPromptEl.value || !contentPromptEl.value) {
+                applyStrategyToPrompts(false);
+            }
+
+            [
+                narrativePerspective,
+                pacingLevel,
+                conflictLevel,
+                emotionLevel,
+                hookStrength,
+                languageStyle,
+                customRequirements
+            ].forEach((el) => {
+                if (!el) return;
+                el.addEventListener('change', () => {
+                    saveState({ promptStrategy: collectStrategyFromUI() });
+                    setStatus('已保存创作要求，可点击“应用到提示词”生效');
+                });
+            });
+
+            [
+                [emotionLevel, emotionLevelCustom],
+                [hookStrength, hookStrengthCustom],
+                [languageStyle, languageStyleCustom]
+            ].forEach(([selectEl, customEl]) => {
+                if (!selectEl || !customEl) return;
+                selectEl.addEventListener('change', () => {
+                    const useCustom = selectEl.value === '__custom__';
+                    customEl.style.display = useCustom ? 'block' : 'none';
+                    if (!useCustom) customEl.value = '';
+                    if (useCustom) customEl.focus();
+                });
+                customEl.addEventListener('input', () => saveState({ promptStrategy: collectStrategyFromUI() }));
+                customEl.addEventListener('change', () => saveState({ promptStrategy: collectStrategyFromUI() }));
+            });
+
+            customRequirements.addEventListener('input', () => {
+                saveState({ promptStrategy: collectStrategyFromUI() });
+            });
+
+            btnAddOutlineStrategy.addEventListener('click', () => addCustomStageStrategy('outline', outlineCustomInput, outlineStrategyList));
+            btnAddChapterStrategy.addEventListener('click', () => addCustomStageStrategy('chapter', chapterCustomInput, chapterStrategyList));
+            btnAddContentStrategy.addEventListener('click', () => addCustomStageStrategy('content', contentCustomInput, contentStrategyList));
+
+            [outlineCustomInput, chapterCustomInput, contentCustomInput].forEach((inputEl) => {
+                inputEl.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        if (inputEl === outlineCustomInput) addCustomStageStrategy('outline', outlineCustomInput, outlineStrategyList);
+                        else if (inputEl === chapterCustomInput) addCustomStageStrategy('chapter', chapterCustomInput, chapterStrategyList);
+                        else addCustomStageStrategy('content', contentCustomInput, contentStrategyList);
+                    }
+                });
+            });
+
+            btnApply.addEventListener('click', () => applyStrategyToPrompts(true));
+
+            btnReset.addEventListener('click', () => {
+                strategy.customStageStrategies = {
+                    outline: [],
+                    chapter: [],
+                    content: []
+                };
+                strategy.numericOverrides = {
+                    outline: {},
+                    chapter: {},
+                    content: {}
+                };
+                activeNumericEditKey = '';
+                Object.keys(numericEditDraft).forEach((key) => delete numericEditDraft[key]);
+                strategy.selectedStageStrategies = {
+                    outline: stageDefaultTemplates.outline.slice(),
+                    chapter: stageDefaultTemplates.chapter.slice(),
+                    content: stageDefaultTemplates.content.slice()
+                };
+
+                narrativePerspective.value = strategyDefaults.narrativePerspective;
+                pacingLevel.value = strategyDefaults.pacingLevel;
+                conflictLevel.value = strategyDefaults.conflictLevel;
+                setupOptionalSelect(emotionLevel, emotionLevelCustom, strategyDefaults.emotionLevel);
+                setupOptionalSelect(hookStrength, hookStrengthCustom, strategyDefaults.hookStrength);
+                setupOptionalSelect(languageStyle, languageStyleCustom, strategyDefaults.languageStyle);
+                customRequirements.value = strategyDefaults.customRequirements;
+                outlineCustomInput.value = '';
+                chapterCustomInput.value = '';
+                contentCustomInput.value = '';
+
+                renderStageStrategy('outline', outlineStrategyList);
+                renderStageStrategy('chapter', chapterStrategyList);
+                renderStageStrategy('content', contentStrategyList);
+                applyStrategyToPrompts(true);
+            });
+
+            [
+                ['outlinePrompt', outlinePromptEl],
+                ['chapterPrompt', chapterPromptEl],
+                ['contentPrompt', contentPromptEl]
+            ].forEach(([key, el]) => {
+                el.addEventListener('input', () => {
+                    saveState({ [key]: el.value });
+                    setStatus('已保存高级提示词修改');
+                });
+            });
+
+            btnToggleManual.addEventListener('click', () => {
+                const isOpen = manualPanel.classList.contains('open');
+                setManualPanelOpen(!isOpen);
+            });
+
+            setManualPanelOpen(Boolean(state.manual_prompts_open));
+        }
+
+        function buildOutlinePrompt(state) {
+            const kb = state.knowledgeBase ? `\n\n知识库补充：\n${state.knowledgeBase}` : '';
+            return (state.outlinePrompt || defaultPrompts.outlinePrompt)
+                .replace('${novel_type}', state.novel_type || '')
+                .replace('${target_readers}', state.target_readers || '')
+                .replace('${story_time}', state.story_time || '')
+                .replace('${story_location}', state.story_location || '')
+                .replace('${background}', state.background || '')
+                .replace('${characters}', state.characters || '')
+                .replace('${relationships}', state.relationships || '')
+                .replace('${plot}', (state.plot || '') + kb)
+                .replace('${style}', state.style || '');
+        }
+
+        function buildChapterPrompt(state) {
+            const kb = state.knowledgeBase ? `\n\n知识库补充：\n${state.knowledgeBase}` : '';
+            return (state.chapterPrompt || defaultPrompts.chapterPrompt)
+                .replace('${outline}', state.outline || '')
+                .replace('${novel_type}', state.novel_type || '')
+                .replace('${target_readers}', state.target_readers || '')
+                .replace('${story_time}', state.story_time || '')
+                .replace('${story_location}', state.story_location || '')
+                .replace('${background}', state.background || '')
+                .replace('${characters}', state.characters || '')
+                .replace('${relationships}', state.relationships || '')
+                .replace('${plot}', (state.plot || '') + kb)
+                .replace('${style}', state.style || '');
+        }
+
+        function buildContentPrompt(state, chapterOutline) {
+            const kb = state.knowledgeBase ? `\n\n知识库补充：\n${state.knowledgeBase}` : '';
+            return (state.contentPrompt || defaultPrompts.contentPrompt)
+                .replace('${outline}', state.outline || '')
+                .replace('${chapter_outline}', chapterOutline || '')
+                .replace('${novel_type}', state.novel_type || '')
+                .replace('${target_readers}', state.target_readers || '')
+                .replace('${story_time}', state.story_time || '')
+                .replace('${story_location}', state.story_location || '')
+                .replace('${background}', state.background || '')
+                .replace('${characters}', state.characters || '')
+                .replace('${relationships}', state.relationships || '')
+                .replace('${plot}', (state.plot || '') + kb)
+                .replace('${style}', state.style || '');
+        }
+
+        function parseMenuConfig(raw, key) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed && Array.isArray(parsed.menu)) return parsed;
+            } catch (error) {
+                // noop
+            }
+            return defaultMenus[key];
+        }
+
+        function getSelectedTextInTextarea(textarea) {
+            if (!textarea) return '';
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            if (typeof start === 'number' && typeof end === 'number' && end > start) {
+                return textarea.value.slice(start, end);
+            }
+            return '';
+        }
+
+        function applyTextReplace(textarea, newText) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            if (typeof start === 'number' && typeof end === 'number' && end >= start) {
+                textarea.setRangeText(newText, start, end, 'end');
+            }
+        }
+
+        function fillPromptTemplate(rawPrompt, state, selected) {
+            const kb = state.knowledgeBase ? `\n\n知识库补充：\n${state.knowledgeBase}` : '';
+            return rawPrompt
+                .replace('${selected_text}', selected || '')
+                .replace('${novel_type}', state.novel_type || '')
+                .replace('${target_readers}', state.target_readers || '')
+                .replace('${story_time}', state.story_time || '')
+                .replace('${story_location}', state.story_location || '')
+                .replace('${background}', state.background || '')
+                .replace('${characters}', state.characters || '')
+                .replace('${relationships}', state.relationships || '')
+                .replace('${plot}', (state.plot || '') + kb)
+                .replace('${style}', state.style || '')
+                .replace('${outline}', state.outline || '');
+        }
+
+        async function runContextAction(item) {
+            const state = getState();
+            const prompt = fillPromptTemplate(item.prompt || '', state, selectedText);
+            setStatus('正在根据右键动作生成内容...');
+
+            try {
+                const response = await fetchWithTimeout('/gen', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+
+                const temp = document.createElement('textarea');
+                const text = await streamToTextarea(response, temp);
+                if (contextTarget && confirm('已生成内容，是否替换当前选中文本？')) {
+                    applyTextReplace(contextTarget, text);
+                    contextTarget.dispatchEvent(new Event('input', { bubbles: true }));
+                    setStatus('替换完成');
+                } else {
+                    setStatus('已生成内容（未替换）');
+                }
+            } catch (error) {
+                setStatus('右键动作执行失败：' + error.message);
+            }
+        }
+
+        function showContextMenu(x, y, menuItems) {
+            const menu = document.getElementById('context-menu');
+            menu.innerHTML = '';
+            menuItems.forEach((item) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = item.name;
+                btn.addEventListener('click', async () => {
+                    menu.style.display = 'none';
+                    await runContextAction(item);
+                });
+                menu.appendChild(btn);
+            });
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+            menu.style.display = 'block';
+        }
+
+        function hideContextMenu() {
+            const menu = document.getElementById('context-menu');
+            if (menu) menu.style.display = 'none';
+        }
+
+        function parseChaptersFromTemp(tempText) {
+            const segments = (tempText || '')
+                .split('###fenge')
+                .map((s) => s.trim())
+                .filter(Boolean);
+
+            if (!segments.length) {
+                return [{ outline: (tempText || '').trim(), content: '' }].filter((c) => c.outline);
+            }
+
+            return segments.map((outline) => ({ outline, content: '' }));
+        }
+
+        function initOutlinePage() {
+            const state = getState();
+            const outline = document.getElementById('outline');
+            const btnGenerate = document.getElementById('btn-generate-outline');
+            const btnRegenerate = document.getElementById('btn-regenerate-outline');
+            const btnChapters = document.getElementById('btn-generate-chapters');
+            const splitPreviewField = document.getElementById('chapter-split-preview-field');
+            const splitPreview = document.getElementById('chapter-split-preview');
+            const btnGoChapters = document.getElementById('btn-go-chapters');
+
+            outline.value = state.outline || '';
+            if (splitPreview && state.tempContent) {
+                splitPreviewField.style.display = 'block';
+                splitPreview.value = state.tempContent;
+            }
+            outline.addEventListener('input', () => {
+                saveState({ outline: outline.value });
+                setStatus('已保存大纲');
+            });
+
+            outline.addEventListener('contextmenu', (e) => {
+                selectedText = getSelectedTextInTextarea(outline);
+                if (!selectedText) {
+                    setStatus('请先选中大纲中的一段文本，再右键使用快捷动作');
+                    return;
+                }
+                e.preventDefault();
+                contextTarget = outline;
+                const cfg = getState().outlineMenuConfig || JSON.stringify(defaultMenus.outlineMenuConfig, null, 2);
+                const menu = parseMenuConfig(cfg, 'outlineMenuConfig');
+                showContextMenu(e.clientX, e.clientY, menu.menu);
+            });
+
+            if (btnGoChapters) {
+                btnGoChapters.addEventListener('click', () => {
+                    window.location.href = "{{ url_for('main.workspace_page', page='chapters') }}";
+                });
+            }
+
+            async function generateOutline(button) {
+                const latest = getState();
+                const prompt = buildOutlinePrompt(latest);
+                setButtonLoading(button, true, '生成中...');
+                setStatus('正在生成大纲...');
+                try {
+                    const response = await fetchWithTimeout('/gen', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt })
+                    });
+                    const text = await streamToTextarea(response, outline);
+                    saveState({ outline: text });
+                    setStatus('大纲生成完成');
+                } catch (error) {
+                    setStatus('大纲生成失败：' + error.message);
+                } finally {
+                    setButtonLoading(button, false);
+                }
+            }
+
+            async function generateChapterSplit(button) {
+                const latest = getState();
+                const prompt = buildChapterPrompt(latest);
+                setButtonLoading(button, true, '拆解中...');
+                setStatus('正在拆解章节...');
+                if (splitPreviewField && splitPreview) {
+                    splitPreviewField.style.display = 'block';
+                    splitPreview.value = '';
+                }
+                try {
+                    const response = await fetchWithTimeout('/gen', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt })
+                    });
+
+                    const text = await streamToTextarea(response, splitPreview);
+                    if (!text.trim()) {
+                        throw new Error('拆解结果为空，请检查提示词或模型配置');
+                    }
+                    const chapters = parseChaptersFromTemp(text);
+                    saveState({ tempContent: text, chapters });
+                    setStatus(`章节拆解完成，已生成 ${chapters.length} 个章节，请前往“写作章节”继续`);
+                } catch (error) {
+                    setStatus('章节拆解失败：' + error.message);
+                } finally {
+                    setButtonLoading(button, false);
+                }
+            }
+
+            btnGenerate.addEventListener('click', () => generateOutline(btnGenerate));
+            btnRegenerate.addEventListener('click', () => generateOutline(btnRegenerate));
+            btnChapters.addEventListener('click', () => generateChapterSplit(btnChapters));
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#context-menu')) {
+                    hideContextMenu();
+                }
+            });
+        }
+
+        function initChaptersPage() {
+            const box = document.getElementById('chapters');
+            const note = document.getElementById('chapter-note');
+            const btnAdd = document.getElementById('btn-add-chapter');
+            const btnImport = document.getElementById('btn-import-from-outline');
+            const btnClear = document.getElementById('btn-clear-chapters');
+
+            function readChapters() {
+                const state = getState();
+                return Array.isArray(state.chapters) ? state.chapters : [];
+            }
+
+            function persist(chapters) {
+                saveState({ chapters });
+            }
+
+            function render() {
+                const chapters = readChapters();
+                box.innerHTML = '';
+                note.style.display = chapters.length ? 'none' : 'block';
+
+                chapters.forEach((chapter, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'chapter';
+                    div.innerHTML = `
+                        <h4>章节 ${index + 1}</h4>
+                        <label class="label">章节细纲</label>
+                        <textarea class="chapter-outline">${chapter.outline || ''}</textarea>
+                        <label class="label">章节正文</label>
+                        <textarea class="chapter-content">${chapter.content || ''}</textarea>
+                        <div class="toolbar">
+                            <button class="primary btn-generate">生成正文</button>
+                            <button class="btn-delete danger">删除章节</button>
+                        </div>
+                    `;
+
+                    const outlineEl = div.querySelector('.chapter-outline');
+                    const contentEl = div.querySelector('.chapter-content');
+                    const generateBtn = div.querySelector('.btn-generate');
+                    const deleteBtn = div.querySelector('.btn-delete');
+
+                    outlineEl.addEventListener('input', () => {
+                        const latest = readChapters();
+                        latest[index].outline = outlineEl.value;
+                        persist(latest);
+                    });
+
+                    outlineEl.addEventListener('contextmenu', (e) => {
+                        selectedText = getSelectedTextInTextarea(outlineEl);
+                        if (!selectedText) return;
+                        e.preventDefault();
+                        contextTarget = outlineEl;
+                        const cfg = getState().chapterMenuConfig || JSON.stringify(defaultMenus.chapterMenuConfig, null, 2);
+                        const menu = parseMenuConfig(cfg, 'chapterMenuConfig');
+                        showContextMenu(e.clientX, e.clientY, menu.menu);
+                    });
+
+                    contentEl.addEventListener('input', () => {
+                        const latest = readChapters();
+                        latest[index].content = contentEl.value;
+                        persist(latest);
+                    });
+
+                    contentEl.addEventListener('contextmenu', (e) => {
+                        selectedText = getSelectedTextInTextarea(contentEl);
+                        if (!selectedText) return;
+                        e.preventDefault();
+                        contextTarget = contentEl;
+                        const cfg = getState().contentMenuConfig || JSON.stringify(defaultMenus.contentMenuConfig, null, 2);
+                        const menu = parseMenuConfig(cfg, 'contentMenuConfig');
+                        showContextMenu(e.clientX, e.clientY, menu.menu);
+                    });
+
+                    deleteBtn.addEventListener('click', () => {
+                        const latest = readChapters();
+                        latest.splice(index, 1);
+                        persist(latest);
+                        render();
+                    });
+
+                    generateBtn.addEventListener('click', async () => {
+                        const latestState = getState();
+                        const latest = readChapters();
+                        const chapter = latest[index];
+                        const prompt = buildContentPrompt(latestState, chapter.outline || '');
+
+                        setButtonLoading(generateBtn, true, '写作中...');
+                        setStatus(`正在生成第 ${index + 1} 章正文...`);
+                        try {
+                            const response = await fetchWithTimeout('/gen', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ prompt })
+                            });
+                            const text = await streamToTextarea(response, contentEl);
+                            const newest = readChapters();
+                            newest[index].content = text;
+                            persist(newest);
+                            setStatus(`第 ${index + 1} 章生成完成`);
+                        } catch (error) {
+                            setStatus('正文生成失败：' + error.message);
+                        } finally {
+                            setButtonLoading(generateBtn, false);
+                        }
+                    });
+
+                    box.appendChild(div);
+                });
+            }
+
+            btnAdd.addEventListener('click', () => {
+                const chapters = readChapters();
+                chapters.push({ outline: '新章节细纲', content: '' });
+                persist(chapters);
+                render();
+                setStatus('已新增章节');
+            });
+
+            btnImport.addEventListener('click', () => {
+                const state = getState();
+                const chapters = parseChaptersFromTemp(state.tempContent || '');
+                if (!chapters.length) {
+                    setStatus('没有可导入的拆解结果，请先在“生成大纲”页面执行章节拆解');
+                    return;
+                }
+                persist(chapters);
+                render();
+                setStatus('已导入拆解结果');
+            });
+
+            btnClear.addEventListener('click', () => {
+                persist([]);
+                render();
+                setStatus('已清空章节');
+            });
+
+            render();
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#context-menu')) {
+                    hideContextMenu();
+                }
+            });
+        }
+
+        function initExportPage() {
+            const summary = document.getElementById('export-summary');
+            const btn = document.getElementById('btn-export');
+
+            function refreshSummary() {
+                const chapters = (getState().chapters || []).filter((c) => (c.content || '').trim());
+                summary.textContent = `当前可导出的章节数：${chapters.length}`;
+            }
+
+            btn.addEventListener('click', async () => {
+                const state = getState();
+                const chapters = (state.chapters || []).map((c) => (c.content || '').trim()).filter(Boolean);
+                if (!chapters.length) {
+                    setStatus('当前没有可导出的正文内容');
+                    return;
+                }
+
+                const content = chapters.join('\n\n');
+                const titleRaw = (state.outline || 'novel').split('\n')[0] || 'novel';
+                const title = titleRaw.replace(/[\\/:*?"<>|]/g, '').slice(0, 80) || 'novel';
+
+                setButtonLoading(btn, true, '导出中...');
+                setStatus('正在导出 TXT...');
+                try {
+                    const response = await fetch('/download', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content, format: 'txt', title })
+                    });
+
+                    if (!response.ok) {
+                        const text = await response.text();
+                        throw new Error(text || '导出失败');
+                    }
+
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${title}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                    setStatus('导出完成');
+                } catch (error) {
+                    setStatus('导出失败：' + error.message);
+                } finally {
+                    setButtonLoading(btn, false);
+                    refreshSummary();
+                }
+            });
+
+            refreshSummary();
+        }
+
+        function initContextMenuPage() {
+            const state = getState();
+            const outline = document.getElementById('outline-menu-config');
+            const chapter = document.getElementById('chapter-menu-config');
+            const content = document.getElementById('content-menu-config');
+            const reset = document.getElementById('btn-menu-reset');
+
+            outline.value = state.outlineMenuConfig || JSON.stringify(defaultMenus.outlineMenuConfig, null, 2);
+            chapter.value = state.chapterMenuConfig || JSON.stringify(defaultMenus.chapterMenuConfig, null, 2);
+            content.value = state.contentMenuConfig || JSON.stringify(defaultMenus.contentMenuConfig, null, 2);
+
+            function saveAll() {
+                saveState({
+                    outlineMenuConfig: outline.value,
+                    chapterMenuConfig: chapter.value,
+                    contentMenuConfig: content.value,
+                });
+                setStatus('已保存右键菜单配置');
+            }
+
+            outline.addEventListener('input', saveAll);
+            chapter.addEventListener('input', saveAll);
+            content.addEventListener('input', saveAll);
+
+            reset.addEventListener('click', () => {
+                outline.value = JSON.stringify(defaultMenus.outlineMenuConfig, null, 2);
+                chapter.value = JSON.stringify(defaultMenus.chapterMenuConfig, null, 2);
+                content.value = JSON.stringify(defaultMenus.contentMenuConfig, null, 2);
+                saveAll();
+            });
+        }
+
+        function initKnowledgePage() {
+            const categories = [
+                { key: 'characters', label: '人物档案' },
+                { key: 'worldSettings', label: '世界观' },
+                { key: 'timeline', label: '时间线' },
+                { key: 'plotLines', label: '剧情线索' },
+                { key: 'locations', label: '地点空间' }
+            ];
+
+            const state = getState();
+            const data = state.knowledgeData || {
+                characters: [],
+                worldSettings: [],
+                timeline: [],
+                plotLines: [],
+                locations: []
+            };
+
+            let current = categories[0].key;
+            let editIndex = -1;
+
+            const nav = document.getElementById('kb-nav');
+            const itemsEl = document.getElementById('kb-items');
+            const searchEl = document.getElementById('kb-search');
+            const titleEl = document.getElementById('kb-title');
+            const descEl = document.getElementById('kb-desc');
+            const tagsEl = document.getElementById('kb-tags');
+            const saveBtn = document.getElementById('kb-save');
+            const resetBtn = document.getElementById('kb-reset');
+
+            function dataToText() {
+                const lines = [];
+                categories.forEach((cat) => {
+                    lines.push(`## ${cat.label}`);
+                    (data[cat.key] || []).forEach((item) => {
+                        lines.push(`- ${item.title}: ${item.description || ''}`);
+                        if (item.tags && item.tags.length) lines.push(`  tags: ${item.tags.join(', ')}`);
+                    });
+                    lines.push('');
+                });
+                return lines.join('\n').trim();
+            }
+
+            function persist() {
+                saveState({ knowledgeData: data, knowledgeBase: dataToText() });
+            }
+
+            function renderNav() {
+                nav.innerHTML = '';
+                categories.forEach((cat) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = `${cat.label} (${(data[cat.key] || []).length})`;
+                    btn.classList.toggle('active', cat.key === current);
+                    btn.addEventListener('click', () => {
+                        current = cat.key;
+                        editIndex = -1;
+                        clearForm();
+                        renderNav();
+                        renderItems();
+                    });
+                    nav.appendChild(btn);
+                });
+            }
+
+            function renderItems() {
+                const q = (searchEl.value || '').trim().toLowerCase();
+                const list = (data[current] || []).filter((item) => {
+                    if (!q) return true;
+                    return (`${item.title} ${item.description} ${(item.tags || []).join(' ')}`).toLowerCase().includes(q);
+                });
+
+                itemsEl.innerHTML = '';
+                if (!list.length) {
+                    itemsEl.innerHTML = '<div class="note">当前分类暂无条目。</div>';
+                    return;
+                }
+
+                list.forEach((item, index) => {
+                    const realIndex = (data[current] || []).indexOf(item);
+                    const div = document.createElement('div');
+                    div.className = 'kb-item';
+                    div.innerHTML = `
+                        <div class="kb-item-head">
+                            <strong>${item.title}</strong>
+                            <div class="toolbar">
+                                <button type="button" class="kb-edit">编辑</button>
+                                <button type="button" class="danger kb-delete">删除</button>
+                            </div>
+                        </div>
+                        <div>${item.description || ''}</div>
+                        <div>${(item.tags || []).map((t) => `<span class="kb-tag">${t}</span>`).join('')}</div>
+                    `;
+
+                    div.querySelector('.kb-edit').addEventListener('click', () => {
+                        editIndex = realIndex;
+                        titleEl.value = item.title || '';
+                        descEl.value = item.description || '';
+                        tagsEl.value = (item.tags || []).join(', ');
+                        setStatus('已加载条目，可编辑后保存');
+                    });
+
+                    div.querySelector('.kb-delete').addEventListener('click', () => {
+                        data[current].splice(realIndex, 1);
+                        persist();
+                        renderNav();
+                        renderItems();
+                        setStatus('条目已删除');
+                    });
+
+                    itemsEl.appendChild(div);
+                });
+            }
+
+            function clearForm() {
+                titleEl.value = '';
+                descEl.value = '';
+                tagsEl.value = '';
+                editIndex = -1;
+            }
+
+            saveBtn.addEventListener('click', () => {
+                const title = titleEl.value.trim();
+                const description = descEl.value.trim();
+                const tags = tagsEl.value.split(',').map((t) => t.trim()).filter(Boolean);
+                if (!title) {
+                    setStatus('名称不能为空');
+                    return;
+                }
+
+                const payload = { title, description, tags };
+                if (editIndex >= 0) data[current][editIndex] = payload;
+                else data[current].push(payload);
+
+                persist();
+                renderNav();
+                renderItems();
+                clearForm();
+                setStatus('知识库已保存');
+            });
+
+            resetBtn.addEventListener('click', clearForm);
+            searchEl.addEventListener('input', renderItems);
+
+            renderNav();
+            renderItems();
+        }
+
+        function initMindmapPage() {
+            const topic = document.getElementById('mindmap-topic');
+            const result = document.getElementById('mindmap-result');
+            const btnGenerate = document.getElementById('btn-generate-mindmap');
+            const btnApply = document.getElementById('btn-apply-mindmap');
+            const btnAdd = document.getElementById('btn-mind-add');
+            const btnEdit = document.getElementById('btn-mind-edit');
+            const btnRemove = document.getElementById('btn-mind-remove');
+            const btnReset = document.getElementById('btn-mind-reset');
+            const state = getState();
+            const canvas = document.getElementById('mindmap-canvas');
+            let jm = null;
+
+            topic.value = state.mindmapTopic || '';
+            result.value = state.mindmapResult || '';
+
+            function defaultMindData() {
+                const rootTopic = topic.value.trim() || '小说创作主题';
+                return {
+                    meta: { name: 'novel-mind', author: 'workspace', version: '1.0' },
+                    format: 'node_tree',
+                    data: {
+                        id: 'root',
+                        topic: rootTopic,
+                        children: [
+                            { id: 'conflict', topic: '核心冲突' },
+                            { id: 'characters', topic: '关键角色' },
+                            { id: 'arcs', topic: '剧情阶段' }
+                        ]
+                    }
+                };
+            }
+
+            function loadMind() {
+                const options = {
+                    container: 'mindmap-canvas',
+                    editable: true,
+                    theme: 'primary',
+                    mode: 'side'
+                };
+                jm = new jsMind(options);
+                const data = state.mindmapData || defaultMindData();
+                jm.show(data);
+            }
+
+            function nodeTreeToLines(node, depth = 0, lines = []) {
+                lines.push(`${'  '.repeat(depth)}- ${node.topic}`);
+                (node.children || []).forEach((child) => nodeTreeToLines(child, depth + 1, lines));
+                return lines;
+            }
+
+            function currentMindText() {
+                const tree = jm.get_data('node_tree').data;
+                return nodeTreeToLines(tree).join('\n');
+            }
+
+            function persistMind() {
+                saveState({
+                    mindmapData: jm.get_data('node_tree'),
+                    mindmapTopic: topic.value,
+                    mindmapResult: result.value
+                });
+            }
+
+            loadMind();
+
+            topic.addEventListener('input', () => saveState({ mindmapTopic: topic.value }));
+            result.addEventListener('input', () => saveState({ mindmapResult: result.value }));
+
+            btnAdd.addEventListener('click', () => {
+                const selected = jm.get_selected_node() || jm.get_root();
+                const nodeId = `node_${Date.now()}`;
+                const name = prompt('输入新节点名称', '新节点');
+                if (!name) return;
+                jm.add_node(selected, nodeId, name);
+                persistMind();
+            });
+
+            btnEdit.addEventListener('click', () => {
+                const selected = jm.get_selected_node();
+                if (!selected) {
+                    setStatus('请先选中一个节点');
+                    return;
+                }
+                const name = prompt('编辑节点名称', selected.topic);
+                if (!name) return;
+                jm.update_node(selected.id, name);
+                persistMind();
+            });
+
+            btnRemove.addEventListener('click', () => {
+                const selected = jm.get_selected_node();
+                if (!selected || selected.isroot) {
+                    setStatus('根节点不能删除');
+                    return;
+                }
+                jm.remove_node(selected);
+                persistMind();
+            });
+
+            btnReset.addEventListener('click', () => {
+                if (!confirm('确认重置思维导图吗？')) return;
+                jm.show(defaultMindData());
+                persistMind();
+                setStatus('思维导图已重置');
+            });
+
+            btnGenerate.addEventListener('click', async () => {
+                const latest = getState();
+                const mindText = currentMindText();
+                const prompt = [
+                    '请基于下面思维导图结构生成小说大纲，保持层级逻辑和剧情递进。',
+                    '输出格式：',
+                    '- 主线主题',
+                    '  - 分支剧情',
+                    '    - 关键冲突与转折',
+                    '    - 人物与目标',
+                    '',
+                    '思维导图结构：',
+                    mindText,
+                    '',
+                    '主题：',
+                    topic.value || latest.plot || latest.outline || '原创长篇小说'
+                ].join('\n');
+
+                setButtonLoading(btnGenerate, true, '生成中...');
+                setStatus('正在生成思维导图大纲...');
+                try {
+                    const response = await fetchWithTimeout('/gen', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt })
+                    });
+                    const text = await streamToTextarea(response, result);
+                    saveState({
+                        mindmapResult: text,
+                        mindmapTopic: topic.value,
+                        mindmapData: jm.get_data('node_tree')
+                    });
+                    setStatus('思维导图大纲生成完成');
+                } catch (error) {
+                    setStatus('思维导图大纲生成失败：' + error.message);
+                } finally {
+                    setButtonLoading(btnGenerate, false);
+                }
+            });
+
+            btnApply.addEventListener('click', () => {
+                if (!result.value.trim()) {
+                    setStatus('没有可写入的大纲内容');
+                    return;
+                }
+                saveState({
+                    outline: result.value,
+                    mindmapResult: result.value,
+                    mindmapData: jm.get_data('node_tree')
+                });
+                setStatus('已写入主大纲，可前往“生成大纲”页面查看与编辑');
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (ACTIVE_PAGE === 'basic') initBasicPage();
+            else if (ACTIVE_PAGE === 'prompts') initPromptPage();
+            else if (ACTIVE_PAGE === 'outline') initOutlinePage();
+            else if (ACTIVE_PAGE === 'chapters') initChaptersPage();
+            else if (ACTIVE_PAGE === 'export') initExportPage();
+            else if (ACTIVE_PAGE === 'advanced-contextmenu') initContextMenuPage();
+            else if (ACTIVE_PAGE === 'advanced-knowledge') initKnowledgePage();
+            else if (ACTIVE_PAGE === 'advanced-mindmap') initMindmapPage();
+        });
+    </script>
+</body>
+</html>

@@ -36,13 +36,23 @@
             <a href="{{ url_for('auth.logout') }}">退出登录</a>
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/jsmind@0.4.6/js/jsmind.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsmind@0.4.6/js/jsmind.draggable.js"></script>
 
     <div class="container">
+        <aside class="sidebar-nav">
+            <div class="sidebar-title">创作流程</div>
+            <button class="step-chip active" data-step-target="step-basic" type="button">1. 作品设定</button>
+            <button class="step-chip" data-step-target="step-prompts" type="button">2. 创作策略</button>
+            <button class="step-chip" data-step-target="step-outline" type="button">3. 生成大纲</button>
+            <button class="step-chip" data-step-target="chapters-container" type="button">4. 写作章节</button>
+            <button class="step-chip" data-step-target="step-export" type="button">5. 导出成稿</button>
+        </aside>
         <div class="settings-panel">
-            <div class="collapsible">基础设置</div>
+            <div class="collapsible" id="step-basic">作品设定</div>
             <div class="content">
+                <p class="helper-text">先写清世界观、人物与冲突，这是后续大纲和正文质量的核心。</p>
                 <label>小说背景：</label>
                 <textarea id="background" class="text-area"></textarea>
                 
@@ -59,8 +69,9 @@
                 <textarea id="style" class="text-area"></textarea>
             </div>
 
-            <div class="collapsible">提示词配置</div>
+            <div class="collapsible" id="step-prompts">创作策略（提示词）</div>
             <div class="content">
+                <p class="helper-text">这里定义 AI 的创作风格和输出策略。先用默认模板，熟悉后再微调。</p>
                 <label>大纲提示词：</label>
                 <textarea id="outline-prompt" class="text-area">
 作为一名专业的网络小说策划，请基于以下信息创建一个富有爆点的小说大纲：
@@ -216,8 +227,9 @@ ${style}
 5. 人物个性鲜明</textarea>
             </div>
 
-            <div class="collapsible">右键菜单配置</div>
+            <div class="collapsible">高级设置（可选）</div>
             <div class="content">
+                <p class="helper-text">高级用户可自定义右键菜单。若你只想写小说，这部分可以忽略。</p>
                 <label>大纲右键菜单：</label>
                 <textarea id="outline-menu-config" class="text-area">{
     "menu": [
@@ -336,13 +348,15 @@ ${style}
         
         <!-- 其余代码保持不变 -->
         <div class="content-panel">
-            <div>
+            <div class="status-bar" id="action-status">就绪：从「作品设定」开始。</div>
+            <div id="step-outline">
                 <h3>大纲</h3>
+                <p class="helper-text">先生成全书大纲，再按大纲拆分章节，最后逐章生成正文。</p>
                 <textarea id="outline" class="text-area"></textarea>
-                <div class="chapter-buttons">
-                    <button onclick="generateOutline()">生成大纲</button>
-                    <button onclick="regenerateOutline()">重写大纲</button>
-                    <button onclick="generateChaptersFromOutline()">根据大纲生成章节</button>
+                <div class="chapter-buttons primary-toolbar">
+                    <button onclick="generateOutline(this)">一键生成大纲</button>
+                    <button onclick="regenerateOutline(this)">重新生成大纲</button>
+                    <button onclick="generateChaptersFromOutline(this)">按大纲拆解章节</button>
                     <button onclick="resetAll()" class="reset-button">重置所有内容</button>
 
 
@@ -367,16 +381,16 @@ ${style}
                 </div>
             </div>
 
-            <div id="chapters-container">
+            <div id="chapters-container" data-workflow-step="step-chapters">
                 <h3>章节</h3>
                 <div class="chapter-buttons">
-                    <button onclick="addChapter()">新增章节</button>
+                    <button onclick="addChapter()">新增空白章节</button>
                     <button onclick="resetChapters()" class="reset-button">重置所有章节</button>
                     <button onclick="showTempContainer()" class="normal-button">显示章节生成区域</button>
                 </div>
                 <div id="chapters"></div>
-                <div class="chapter-buttons" style="margin-top: 16px;">
-                    <button id="download-generated-novel" class="normal-button">下载生成小说</button>
+                <div class="chapter-buttons" id="step-export" style="margin-top: 16px;">
+                    <button id="download-generated-novel" class="normal-button">导出小说（TXT）</button>
                 </div>
             </div>
         </div>
@@ -406,6 +420,44 @@ ${style}
             } catch (error) {
                 return null;
             }
+        }
+
+        function setActionStatus(message, type = 'info') {
+            const el = document.getElementById('action-status');
+            if (!el) return;
+
+            el.textContent = message;
+            el.classList.remove('status-info', 'status-success', 'status-error');
+            if (type === 'success') {
+                el.classList.add('status-success');
+            } else if (type === 'error') {
+                el.classList.add('status-error');
+            } else {
+                el.classList.add('status-info');
+            }
+        }
+
+        function setButtonLoading(button, loading, loadingText) {
+            if (!button) return;
+
+            if (loading) {
+                if (!button.dataset.originalText) {
+                    button.dataset.originalText = button.textContent;
+                }
+                button.disabled = true;
+                button.textContent = loadingText;
+            } else {
+                button.disabled = false;
+                if (button.dataset.originalText) {
+                    button.textContent = button.dataset.originalText;
+                }
+            }
+        }
+
+        function activateWorkflowStep(targetId) {
+            document.querySelectorAll('.step-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.stepTarget === targetId);
+            });
         }
 
         // 保存当前状态到localStorage
@@ -537,7 +589,7 @@ ${style}
             }
         }
         // 生成大纲
-        async function generateOutline() {
+        async function generateOutline(button) {
             const prompt = $('#outline-prompt').val()
                 .replace('${background}', $('#background').val())
                 .replace('${characters}', $('#characters').val())
@@ -546,6 +598,8 @@ ${style}
                 .replace('${style}', $('#style').val());
 
             try {
+                setButtonLoading(button, true, '生成中...');
+                setActionStatus('正在生成大纲，请稍候...');
                 const response = await fetch('/gen', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -554,13 +608,17 @@ ${style}
 
                 await handleStreamResponse(response, $('#outline')[0]);
                 saveState();
+                setActionStatus('大纲生成完成，可继续拆解章节。', 'success');
             } catch (error) {
+                setActionStatus('大纲生成失败，请重试。', 'error');
                 alert('生成大纲时出错：' + error.message);
+            } finally {
+                setButtonLoading(button, false);
             }
         }
 
         // 根据大纲生成章节细纲
-        async function generateChaptersFromOutline() {
+        async function generateChaptersFromOutline(button) {
             const outline = $('#outline').val();
             const prompt = $('#chapter-prompt').val()
                 .replace('${outline}', outline)
@@ -571,6 +629,8 @@ ${style}
                 .replace('${style}', $('#style').val());
 
             try {
+                setButtonLoading(button, true, '拆解中...');
+                setActionStatus('正在根据大纲拆解章节细纲...');
                 showTempContainer();
                 const response = await fetch('/gen', {
                     method: 'POST',
@@ -593,8 +653,12 @@ ${style}
                     tempContent.scrollTop(tempContent[0].scrollHeight);
                 }
                 saveState();
+                setActionStatus('章节细纲已生成，可分割为章节。', 'success');
             } catch (error) {
+                setActionStatus('章节细纲生成失败，请检查配置后重试。', 'error');
                 alert('生成章节时出错：' + error.message);
+            } finally {
+                setButtonLoading(button, false);
             }
         }
 
@@ -654,6 +718,8 @@ ${style}
                 .replace('${style}', $('#style').val());
 
             try {
+                setButtonLoading(button, true, '写作中...');
+                setActionStatus('正在生成章节正文...');
                 const response = await fetch('/gen', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -662,13 +728,26 @@ ${style}
 
                 await handleStreamResponse(response, container.find('.chapter-content-text')[0]);
                 saveState();
+                setActionStatus('章节正文生成完成。', 'success');
             } catch (error) {
+                setActionStatus('章节正文生成失败，请重试。', 'error');
                 alert('生成正文时出错：' + error.message);
+            } finally {
+                setButtonLoading(button, false);
             }
         }
 
         // 处理流式响应
         async function handleStreamResponse(response, targetElement) {
+            if (!response.ok) {
+                const message = await response.text();
+                throw new Error(message || '请求失败');
+            }
+
+            if (!response.body) {
+                throw new Error('浏览器不支持流式响应');
+            }
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
@@ -956,8 +1035,8 @@ async function handleContextMenuAction(item) {
             generateContent(button);
         }
 
-        function regenerateOutline() {
-            generateOutline();
+        function regenerateOutline(button) {
+            generateOutline(button);
         }
 
         async function downloadGeneratedNovel() {
@@ -1005,6 +1084,17 @@ async function handleContextMenuAction(item) {
         // 初始化事件绑定
         $(document).ready(function() {
             $('#download-generated-novel').on('click', downloadGeneratedNovel);
+
+            $('.step-chip').on('click', function() {
+                const targetId = $(this).data('step-target');
+                const target = document.getElementById(targetId);
+                if (target) {
+                    activateWorkflowStep(targetId);
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    setActionStatus(`已切换到步骤：${$(this).text()}`);
+                }
+            });
+
             // 绑定右键菜单事件
             $('#outline').on('contextmenu', function(e) {
                 showContextMenu(e, $('#outline-menu-config').val(), this);
@@ -1050,6 +1140,7 @@ async function handleContextMenuAction(item) {
 
             // 自动展开第一个设置面板
             $('.collapsible:first').addClass('active').next('.content').addClass('show');
+            setActionStatus('就绪：请先完善作品设定，然后生成大纲。');
         });
 
         // 错误处理函数
@@ -1130,7 +1221,6 @@ $(document).ready(function() {
 <script src="{{ url_for('static', filename='outin.js') }}"></script>
 <script src="{{ url_for('static', filename='bookinfo.js') }}"></script>
 <script src="{{ url_for('static', filename='mode-shortcut.js') }}"></script>
-<script src="{{ url_for('static', filename='chat-and-counter.js') }}"></script>
 <script src="{{ url_for('static', filename='theme-switcher.js') }}"></script>
 <script src="{{ url_for('static', filename='prompt-editor.js') }}"></script>
 <script src="{{ url_for('static', filename='knowledge-base.js') }}"></script>
