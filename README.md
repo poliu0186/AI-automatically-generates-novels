@@ -278,6 +278,59 @@ python app.py
 
 访问：http://localhost:20000
 
+## Linux 生产部署（推荐）
+
+建议使用 Linux + Gunicorn + Nginx + systemd。
+
+### 1. 启动多实例 Worker（Gunicorn）
+
+项目已提供：
+
+- `wsgi.py`
+- `gunicorn.conf.py`
+- `deploy/ai-novel.service`
+- `deploy/nginx-ai-novel.conf`
+
+示例命令：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+gunicorn -c gunicorn.conf.py wsgi:app
+```
+
+可通过环境变量调优：
+
+```bash
+export GUNICORN_BIND=127.0.0.1:60001
+export GUNICORN_WORKERS=4
+export GUNICORN_WORKER_CLASS=gevent
+export GUNICORN_TIMEOUT=120
+```
+
+### 2. 配置 systemd 托管
+
+```bash
+sudo cp deploy/ai-novel.service /etc/systemd/system/ai-novel.service
+sudo systemctl daemon-reload
+sudo systemctl enable ai-novel
+sudo systemctl start ai-novel
+sudo systemctl status ai-novel
+```
+
+注意：将 service 文件中的路径改为你的真实部署路径（默认示例为 `/opt/ai-novel`）。
+
+### 3. 配置 Nginx 反向代理
+
+```bash
+sudo cp deploy/nginx-ai-novel.conf /etc/nginx/conf.d/ai-novel.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+如果你需要 HTTPS，请再接入证书（例如 certbot）。
+
 
 
 

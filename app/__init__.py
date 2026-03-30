@@ -10,6 +10,7 @@ from app.auth import auth_bp, create_user, get_user_by_username
 from app.admin import admin_bp
 from app.main import main_bp
 from app.ai import api_bp
+from app.payment import payment_bp
 
 
 def create_app():
@@ -35,6 +36,17 @@ def create_app():
     app.config['API_KEY_1'] = os.environ.get('API_KEY_1', '')
     app.config['API_ENDPOINT_2'] = os.environ.get('API_ENDPOINT_2', 'https://open.bigmodel.cn/api/paas/v4/')
     app.config['API_KEY_2'] = os.environ.get('API_KEY_2', '')
+    app.config['COINS_PER_1000_TOKENS'] = os.environ.get('COINS_PER_1000_TOKENS', '1')
+    app.config['COINS_PER_YUAN'] = os.environ.get('COINS_PER_YUAN', '10')
+    app.config['MIN_RECHARGE_AMOUNT_YUAN'] = os.environ.get('MIN_RECHARGE_AMOUNT_YUAN', '10')
+    app.config['DEFAULT_ESTIMATED_OUTPUT_TOKENS'] = os.environ.get('DEFAULT_ESTIMATED_OUTPUT_TOKENS', '1200')
+    app.config['PAYMENT_SUBJECT_PREFIX'] = os.environ.get('PAYMENT_SUBJECT_PREFIX', '小说创作代币充值')
+    app.config['ALIPAY_GATEWAY'] = os.environ.get('ALIPAY_GATEWAY', 'https://openapi.alipay.com/gateway.do')
+    app.config['ALIPAY_APP_ID'] = os.environ.get('ALIPAY_APP_ID', '')
+    app.config['ALIPAY_PRIVATE_KEY'] = os.environ.get('ALIPAY_PRIVATE_KEY', '')
+    app.config['ALIPAY_PUBLIC_KEY'] = os.environ.get('ALIPAY_PUBLIC_KEY', '')
+    app.config['ALIPAY_NOTIFY_URL'] = os.environ.get('ALIPAY_NOTIFY_URL', '')
+    app.config['ALIPAY_RETURN_URL'] = os.environ.get('ALIPAY_RETURN_URL', '')
 
     logging.basicConfig(level=logging.DEBUG)
 
@@ -47,6 +59,7 @@ def create_app():
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(payment_bp)
 
     with app.app_context():
         db.create_all()

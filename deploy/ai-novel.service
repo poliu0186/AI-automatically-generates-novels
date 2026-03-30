@@ -1,0 +1,19 @@
+[Unit]
+Description=AI Novel App (Gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/ai-novel
+EnvironmentFile=/opt/ai-novel/.env
+ExecStart=/opt/ai-novel/.venv/bin/gunicorn -c /opt/ai-novel/gunicorn.conf.py wsgi:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

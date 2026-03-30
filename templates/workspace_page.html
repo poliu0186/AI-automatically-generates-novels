@@ -129,12 +129,17 @@
 
         .strategy-option {
             display: flex;
+            flex-wrap: wrap;
             align-items: flex-start;
             gap: 8px;
             border: 1px solid #d9e4ef;
             border-radius: 8px;
             padding: 8px 10px;
             background: #f9fcff;
+        }
+
+        .strategy-option.has-numeric {
+            position: relative;
         }
 
         .strategy-option input[type="checkbox"] {
@@ -148,6 +153,11 @@
             color: #35516b;
             line-height: 1.5;
             flex: 1;
+            min-width: 0;
+        }
+
+        .strategy-option.editing-numeric .text {
+            flex: 1 1 100%;
         }
 
         .strategy-option .remove-custom-btn {
@@ -171,13 +181,15 @@
             flex-wrap: wrap;
             gap: 6px;
             width: 100%;
+            flex-basis: 100%;
+            margin-left: 24px;
         }
 
         .strategy-param-badges {
             display: inline-flex;
             flex-wrap: nowrap;
             gap: 6px;
-            margin-left: auto;
+            margin-left: 0;
             align-self: center;
         }
 
@@ -197,6 +209,9 @@
         }
 
         .strategy-option.has-numeric .strategy-param-badges {
+            position: absolute;
+            right: 10px;
+            top: 8px;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.15s ease;
@@ -205,6 +220,15 @@
         .strategy-option.has-numeric:hover .strategy-param-badges {
             opacity: 1;
             pointer-events: auto;
+        }
+
+        @media (hover: none) {
+            .strategy-option.has-numeric .strategy-param-badges {
+                position: static;
+                margin-left: auto;
+                opacity: 1;
+                pointer-events: auto;
+            }
         }
 
         .strategy-number-editor .num-chip {
@@ -257,6 +281,112 @@
             color: #52708b;
             font-size: 12px;
             line-height: 1.6;
+        }
+
+        .wallet-feed {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .wallet-panel {
+            border: 1px solid #dce7f2;
+            border-radius: 10px;
+            background: #f9fcff;
+            overflow: hidden;
+        }
+
+        .wallet-panel-head {
+            padding: 10px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #2f4f6a;
+            border-bottom: 1px solid #e5eef7;
+            background: #f2f8ff;
+        }
+
+        .wallet-list {
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            max-height: 320px;
+            overflow: auto;
+        }
+
+        .wallet-item {
+            border: 1px solid #e1e9f2;
+            border-radius: 8px;
+            background: #fff;
+            padding: 10px;
+            display: grid;
+            gap: 6px;
+        }
+
+        .wallet-item-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 12px;
+            color: #48627a;
+        }
+
+        .wallet-item-title {
+            font-size: 13px;
+            color: #244763;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .wallet-item-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 12px;
+            color: #557087;
+        }
+
+        .wallet-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            border: 1px solid #d3deea;
+            background: #f4f8fc;
+            color: #3f5f7c;
+            white-space: nowrap;
+        }
+
+        .wallet-tag.status-paid {
+            color: #1d6b3e;
+            border-color: #b8dfc8;
+            background: #ecfbf2;
+        }
+
+        .wallet-tag.status-pending {
+            color: #8c5f00;
+            border-color: #ead48a;
+            background: #fff9e8;
+        }
+
+        .wallet-tag.status-closed,
+        .wallet-tag.status-failed,
+        .wallet-tag.status-released {
+            color: #8a3d3d;
+            border-color: #e6c1c1;
+            background: #fff3f3;
+        }
+
+        .wallet-empty {
+            border: 1px dashed #d1deeb;
+            border-radius: 8px;
+            background: #fff;
+            color: #6f8598;
+            font-size: 12px;
+            text-align: center;
+            padding: 16px 12px;
         }
 
         .label {
@@ -673,6 +803,82 @@
             </div>
             <div class="status" id="status"></div>
         </div>
+        {% elif active_page == 'wallet' %}
+        <div class="card">
+            <h2>钱包充值</h2>
+            <p class="desc">先通过支付宝充值代币，再按模型实际消耗的 Token 自动换算扣费。当前规则：1000 Token = 1 代币。</p>
+            <div class="meta-hint">这版已搭好钱包、订单、流水与支付宝下单骨架。异步通知验签仍需在你的正式支付宝参数就绪后补最后一层。</div>
+
+            <div class="strategy-grid" style="margin-top:12px;">
+                <div class="field">
+                    <label class="label">可用代币</label>
+                    <div class="note" id="wallet-available">加载中...</div>
+                </div>
+                <div class="field">
+                    <label class="label">累计充值</label>
+                    <div class="note" id="wallet-recharged">加载中...</div>
+                </div>
+                <div class="field">
+                    <label class="label">累计消耗</label>
+                    <div class="note" id="wallet-consumed">加载中...</div>
+                </div>
+            </div>
+
+            <div class="field" style="margin-top:12px;">
+                <label class="label" for="wallet-recharge-amount">充值金额（元）</label>
+                <input id="wallet-recharge-amount" type="number" min="10" step="1" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="例如：50">
+                <p class="section-subtitle" id="wallet-pricing-hint" style="margin:8px 0 0;">加载计价规则中...</p>
+            </div>
+
+            <div class="toolbar" style="margin-top:12px;">
+                <button class="primary" id="btn-wallet-recharge" type="button">创建支付宝充值订单</button>
+                <button id="btn-wallet-refresh" type="button">刷新余额</button>
+            </div>
+
+            <div class="note" id="wallet-order-result" style="margin-top:10px;display:none;"></div>
+
+            <div class="wallet-feed">
+                <div class="wallet-panel">
+                    <div class="wallet-panel-head">最近充值订单</div>
+                    <div class="wallet-list" id="wallet-recent-orders"></div>
+                </div>
+
+                <div class="wallet-panel">
+                    <div class="wallet-panel-head">最近账单（用户视角）</div>
+                    <div class="toolbar" style="margin-top:8px;gap:8px;flex-wrap:wrap;">
+                        <select id="wallet-bill-type" style="min-width:120px;">
+                            <option value="all">全部类型</option>
+                            <option value="recharge">充值到账</option>
+                            <option value="consume">实际消耗</option>
+                            <option value="release">返还代币</option>
+                        </select>
+                        <select id="wallet-bill-feature" style="min-width:120px;">
+                            <option value="all">全部功能</option>
+                            <option value="recharge">充值相关</option>
+                            <option value="gen">正文生成</option>
+                            <option value="gen2">章节拆解</option>
+                            <option value="other">其他功能</option>
+                        </select>
+                        <select id="wallet-bill-time" style="min-width:120px;">
+                            <option value="all">全部时间</option>
+                            <option value="3">最近3天</option>
+                            <option value="7">最近7天</option>
+                            <option value="30">最近30天</option>
+                        </select>
+                        <input id="wallet-bill-keyword" type="text" placeholder="搜索订单号/说明" style="min-width:180px;">
+                        <button id="btn-wallet-bill-reset" type="button">重置筛选</button>
+                    </div>
+                    <p class="section-subtitle" id="wallet-bill-filter-result" style="margin:8px 0 0;">筛选后显示 0 条</p>
+                    <div class="wallet-list" id="wallet-recent-ledger"></div>
+                </div>
+
+                <div class="wallet-panel" id="wallet-usage-panel">
+                    <div class="wallet-panel-head">最近模型计费记录</div>
+                    <div class="wallet-list" id="wallet-recent-usage"></div>
+                </div>
+            </div>
+            <div class="status" id="status"></div>
+        </div>
         {% elif active_page == 'prompts' %}
         <div class="card">
             <h2>创作策略</h2>
@@ -927,20 +1133,110 @@
         const defaultMenus = {
             outlineMenuConfig: {
                 menu: [
-                    { name: '评估结构', prompt: '请评价这段大纲结构并给出可执行优化建议：${selected_text}' },
-                    { name: '强化冲突', prompt: '请强化这段内容的冲突与悬念：${selected_text}' }
+                    {
+                        name: 'AI评分',
+                        prompt: '请对以下大纲进行100分制评分，评分项包括：\n1. 故事结构完整性\n2. 冲突设置的合理性\n3. 人物塑造的立体度\n4. 情节发展的吸引力\n5. 主题深度\n\n大纲内容：${selected_text}\n\n背景设定：${background}'
+                    },
+                    {
+                        name: '深化冲突',
+                        prompt: '基于背景：${background}\n人物：${characters}\n在保持合理性的前提下，将以下内容的冲突升级，制造更强的戏剧性：${selected_text}'
+                    },
+                    {
+                        name: '增加伏笔',
+                        prompt: '分析剧情：${plot}\n为以下内容设计巧妙的伏笔，为后续发展埋下种子：${selected_text}'
+                    },
+                    {
+                        name: '完善人物动机',
+                        prompt: '基于人物性格：${characters}\n关系：${relationships}\n补充和优化以下内容中人物的行动动机，使其更符合性格：${selected_text}'
+                    },
+                    {
+                        name: '强化感情线',
+                        prompt: '基于角色关系：${relationships}\n加强以下内容中的感情发展，让感情线更吸引人：${selected_text}'
+                    },
+                    {
+                        name: '优化节奏',
+                        prompt: '分析当前剧情走向，调整以下内容的节奏安排，确保张弛有度：${selected_text}'
+                    },
+                    {
+                        name: '扩充细节',
+                        prompt: '基于背景：${background}\n为以下内容补充更多细节，增强画面感和沉浸感：${selected_text}'
+                    },
+                    {
+                        name: '提升高潮',
+                        prompt: '在符合逻辑的前提下，将以下内容的高潮部分改写得更加震撼：${selected_text}'
+                    }
                 ]
             },
             chapterMenuConfig: {
                 menu: [
-                    { name: '细纲扩写', prompt: '请把这段章节细纲扩写为更详细的行动步骤：${selected_text}' },
-                    { name: '节奏优化', prompt: '请优化这段章节细纲的节奏，保留关键信息：${selected_text}' }
+                    {
+                        name: 'AI评分',
+                        prompt: '请对以下章节细纲进行100分制评分。评分项：\n1. 章节结构完整性\n2. 情节安排合理性\n3. 人物刻画深度\n4. 悬念设置效果\n5. 与整体剧情的契合度\n\n章节内容：${selected_text}\n\n大纲背景：${outline}'
+                    },
+                    {
+                        name: '深化情节',
+                        prompt: '基于大纲：${outline}\n角色关系：${relationships}\n将以下章节的情节发展变得更加吸引人：${selected_text}'
+                    },
+                    {
+                        name: '强化冲突',
+                        prompt: '基于人物性格：${characters}\n将以下章节的矛盾冲突升级，制造更强的戏剧效果：${selected_text}'
+                    },
+                    {
+                        name: '优化结构',
+                        prompt: '分析当前章节定位，调整以下内容的结构，使其更加完整：${selected_text}'
+                    },
+                    {
+                        name: '增加细节',
+                        prompt: '基于场景背景：${background}\n为以下章节添加更多细节描写，增强画面感：${selected_text}'
+                    },
+                    {
+                        name: '完善对话',
+                        prompt: '基于角色关系：${relationships}\n优化以下内容中的对话设计，突出人物性格：${selected_text}'
+                    },
+                    {
+                        name: '设置伏笔',
+                        prompt: '分析整体剧情：${plot}\n为以下章节设置巧妙的伏笔，为后续发展做铺垫：${selected_text}'
+                    },
+                    {
+                        name: '强化感情',
+                        prompt: '基于人物关系：${relationships}\n加强以下章节中的感情描写，增添情感冲击力：${selected_text}'
+                    }
                 ]
             },
             contentMenuConfig: {
                 menu: [
-                    { name: '润色文笔', prompt: '请在保持意思不变的前提下润色这段文字：${selected_text}' },
-                    { name: '增强画面感', prompt: '请增强这段内容的画面感与情绪张力：${selected_text}' }
+                    {
+                        name: 'AI评分',
+                        prompt: '请对以下内容进行100分制评分。评分项：\n1. 文字流畅度\n2. 场景描写生动性\n3. 人物刻画真实感\n4. 情感表达深度\n5. 是否有AI痕迹\n\n内容：${selected_text}\n\n写作风格：${style}'
+                    },
+                    {
+                        name: '优化文笔',
+                        prompt: '基于写作风格：${style}\n将以下内容改写得更加优美流畅，去除机械痕迹：${selected_text}'
+                    },
+                    {
+                        name: '扩写对话',
+                        prompt: '基于人物性格：${characters}\n关系：${relationships}\n将以下对话场景扩写得更加生动，体现人物性格：${selected_text}'
+                    },
+                    {
+                        name: '强化情感',
+                        prompt: '结合人物关系：${relationships}\n将以下内容的情感描写变得更加细腻动人：${selected_text}'
+                    },
+                    {
+                        name: '添加细节',
+                        prompt: '基于场景背景：${background}\n为以下内容添加更多感官细节，增强画面感：${selected_text}'
+                    },
+                    {
+                        name: '改写视角',
+                        prompt: '保持原有剧情，将以下内容改写为更吸引人的视角：${selected_text}'
+                    },
+                    {
+                        name: '去除说教',
+                        prompt: '将以下内容中说教性的描写改写为更自然的表达：${selected_text}'
+                    },
+                    {
+                        name: '润色升华',
+                        prompt: '基于主题：${plot}\n将以下内容升华改写，增强文学性：${selected_text}'
+                    }
                 ]
             }
         };
@@ -1713,6 +2009,9 @@
                             row.classList.add('has-numeric');
                             const editKey = makeNumericEditKey(stageKey, item.defaultIndex);
                             const isEditing = activeNumericEditKey === editKey;
+                            if (isEditing) {
+                                row.classList.add('editing-numeric');
+                            }
 
                             if (!isEditing) {
                                 const badges = document.createElement('div');
@@ -2608,9 +2907,43 @@
             const content = document.getElementById('content-menu-config');
             const reset = document.getElementById('btn-menu-reset');
 
-            outline.value = state.outlineMenuConfig || JSON.stringify(defaultMenus.outlineMenuConfig, null, 2);
-            chapter.value = state.chapterMenuConfig || JSON.stringify(defaultMenus.chapterMenuConfig, null, 2);
-            content.value = state.contentMenuConfig || JSON.stringify(defaultMenus.contentMenuConfig, null, 2);
+            function parseMenuJson(raw) {
+                try {
+                    const parsed = JSON.parse(raw || '');
+                    if (parsed && Array.isArray(parsed.menu)) return parsed;
+                } catch (error) {
+                    // noop
+                }
+                return null;
+            }
+
+            function isLegacyMinimalMenu(menuObj, names) {
+                if (!menuObj || !Array.isArray(menuObj.menu) || menuObj.menu.length !== names.length) {
+                    return false;
+                }
+                return menuObj.menu.every((item, index) => item && item.name === names[index]);
+            }
+
+            const outlineCfg = parseMenuJson(state.outlineMenuConfig);
+            const chapterCfg = parseMenuJson(state.chapterMenuConfig);
+            const contentCfg = parseMenuJson(state.contentMenuConfig);
+
+            const outlineNeedsUpgrade = isLegacyMinimalMenu(outlineCfg, ['评估结构', '强化冲突']);
+            const chapterNeedsUpgrade = isLegacyMinimalMenu(chapterCfg, ['细纲扩写', '节奏优化']);
+            const contentNeedsUpgrade = isLegacyMinimalMenu(contentCfg, ['润色文笔', '增强画面感']);
+
+            if (outlineNeedsUpgrade || chapterNeedsUpgrade || contentNeedsUpgrade) {
+                saveState({
+                    outlineMenuConfig: outlineNeedsUpgrade ? JSON.stringify(defaultMenus.outlineMenuConfig, null, 2) : (state.outlineMenuConfig || ''),
+                    chapterMenuConfig: chapterNeedsUpgrade ? JSON.stringify(defaultMenus.chapterMenuConfig, null, 2) : (state.chapterMenuConfig || ''),
+                    contentMenuConfig: contentNeedsUpgrade ? JSON.stringify(defaultMenus.contentMenuConfig, null, 2) : (state.contentMenuConfig || '')
+                });
+            }
+
+            const latest = getState();
+            outline.value = latest.outlineMenuConfig || JSON.stringify(defaultMenus.outlineMenuConfig, null, 2);
+            chapter.value = latest.chapterMenuConfig || JSON.stringify(defaultMenus.chapterMenuConfig, null, 2);
+            content.value = latest.contentMenuConfig || JSON.stringify(defaultMenus.contentMenuConfig, null, 2);
 
             function saveAll() {
                 saveState({
@@ -2631,6 +2964,311 @@
                 content.value = JSON.stringify(defaultMenus.contentMenuConfig, null, 2);
                 saveAll();
             });
+        }
+
+        function initWalletPage() {
+            const availableEl = document.getElementById('wallet-available');
+            const rechargedEl = document.getElementById('wallet-recharged');
+            const consumedEl = document.getElementById('wallet-consumed');
+            const amountEl = document.getElementById('wallet-recharge-amount');
+            const pricingHintEl = document.getElementById('wallet-pricing-hint');
+            const btnRecharge = document.getElementById('btn-wallet-recharge');
+            const btnRefresh = document.getElementById('btn-wallet-refresh');
+            const resultEl = document.getElementById('wallet-order-result');
+            const ordersEl = document.getElementById('wallet-recent-orders');
+            const ledgerEl = document.getElementById('wallet-recent-ledger');
+            const usageEl = document.getElementById('wallet-recent-usage');
+            const usagePanelEl = document.getElementById('wallet-usage-panel');
+            const billTypeEl = document.getElementById('wallet-bill-type');
+            const billFeatureEl = document.getElementById('wallet-bill-feature');
+            const billTimeEl = document.getElementById('wallet-bill-time');
+            const billKeywordEl = document.getElementById('wallet-bill-keyword');
+            const billResetEl = document.getElementById('btn-wallet-bill-reset');
+            const billFilterResultEl = document.getElementById('wallet-bill-filter-result');
+            let ledgerSource = [];
+
+            function escapeHtml(input) {
+                const value = String(input == null ? '' : input);
+                return value
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function normalizeStatusClass(status) {
+                const value = (status || '').toLowerCase();
+                if (!value) return 'status-pending';
+                if (['paid', 'completed', 'success'].includes(value)) return 'status-paid';
+                if (['pending', 'reserved'].includes(value)) return 'status-pending';
+                if (['closed', 'failed', 'released'].includes(value)) return `status-${value}`;
+                return 'status-pending';
+            }
+
+            function renderList(container, items, emptyText) {
+                if (!items || !items.length) {
+                    container.innerHTML = `<div class="wallet-empty">${escapeHtml(emptyText)}</div>`;
+                    return;
+                }
+                container.innerHTML = items.join('');
+            }
+
+            function formatOrders(list) {
+                return (list || []).map((item) => {
+                    const status = item.status || 'pending';
+                    return `<div class="wallet-item">
+                        <div class="wallet-item-top">
+                            <span class="wallet-item-title">订单 ${escapeHtml(item.order_no || '-')}</span>
+                            <span class="wallet-tag ${normalizeStatusClass(status)}">${escapeHtml(status)}</span>
+                        </div>
+                        <div class="wallet-item-meta">
+                            <span class="wallet-tag">金额 ${escapeHtml(item.amount_yuan || '-')} 元</span>
+                            <span class="wallet-tag">代币 ${escapeHtml(item.coins || 0)}</span>
+                            <span class="wallet-tag">创建 ${escapeHtml(item.created_at || '-')}</span>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            function featureLabelByEndpoint(endpoint) {
+                const value = String(endpoint || '').trim().toLowerCase();
+                if (!value) return '模型调用';
+                if (value === '/gen') return '正文生成';
+                if (value === '/gen2') return '章节拆解';
+                return `功能 ${endpoint}`;
+            }
+
+            function featureKeyByItem(item) {
+                const type = String(item.change_type || '').toLowerCase();
+                if (type === 'recharge') return 'recharge';
+                const endpoint = String(item.usage_endpoint || '').toLowerCase();
+                if (endpoint === '/gen') return 'gen';
+                if (endpoint === '/gen2') return 'gen2';
+                return 'other';
+            }
+
+            function toLocalText(isoText) {
+                if (!isoText) return '-';
+                const date = new Date(isoText);
+                if (Number.isNaN(date.getTime())) return String(isoText);
+                return date.toLocaleString('zh-CN', { hour12: false });
+            }
+
+            function humanizeLedgerItem(item) {
+                const type = String(item.change_type || '').toLowerCase();
+                const availableDelta = Number(item.available_delta || 0);
+                const reservedDelta = Number(item.reserved_delta || 0);
+                const absAvailable = Math.abs(availableDelta);
+                const featureLabel = featureLabelByEndpoint(item.usage_endpoint || '');
+                const orderNo = item.related_order_no || '';
+                const remark = item.remark || '';
+
+                if (type === 'recharge') {
+                    return {
+                        title: `充值到账 +${absAvailable} 代币`,
+                        details: [
+                            orderNo ? `订单号：${orderNo}` : '充值订单',
+                            remark || '支付宝充值成功到账'
+                        ]
+                    };
+                }
+
+                if (type === 'consume') {
+                    const consumed = absAvailable || 0;
+                    return {
+                        title: `${featureLabel} 消耗 ${consumed} 代币`,
+                        details: [
+                            `本次实际扣费：${consumed} 代币`,
+                            remark || '已按实际 Token 结算'
+                        ]
+                    };
+                }
+
+                if (type === 'release') {
+                    const released = absAvailable || Math.abs(reservedDelta);
+                    return {
+                        title: `${featureLabel} 返还 ${released} 代币`,
+                        details: [
+                            '本次预占有剩余，已自动返还',
+                            remark || '调用中断或实际消耗低于预占'
+                        ]
+                    };
+                }
+
+                if (type === 'reserve') {
+                    const reserved = Math.abs(reservedDelta || availableDelta);
+                    return {
+                        title: `${featureLabel} 冻结 ${reserved} 代币`,
+                        details: [
+                            '本次调用正在处理中，完成后会自动结算',
+                            remark || '为避免超额调用，系统会先冻结后结算'
+                        ]
+                    };
+                }
+
+                return {
+                    title: `${type || 'ledger'} ${availableDelta >= 0 ? '+' : ''}${availableDelta} 代币`,
+                    details: [remark || '钱包余额变动']
+                };
+            }
+
+            function applyBillFilters(list) {
+                const typeFilter = (billTypeEl && billTypeEl.value) || 'all';
+                const featureFilter = (billFeatureEl && billFeatureEl.value) || 'all';
+                const timeFilter = (billTimeEl && billTimeEl.value) || 'all';
+                const keyword = ((billKeywordEl && billKeywordEl.value) || '').trim().toLowerCase();
+                const now = Date.now();
+                const maxAgeDays = Number(timeFilter);
+
+                return (list || []).filter((item) => {
+                    const type = String(item.change_type || '').toLowerCase();
+                    if (type === 'reserve') return false;
+                    if (typeFilter !== 'all' && type !== typeFilter) return false;
+
+                    const featureKey = featureKeyByItem(item);
+                    if (featureFilter !== 'all' && featureKey !== featureFilter) return false;
+
+                    if (Number.isFinite(maxAgeDays) && maxAgeDays > 0) {
+                        const createdAtMs = new Date(item.created_at || '').getTime();
+                        if (!Number.isFinite(createdAtMs)) return false;
+                        const ageDays = (now - createdAtMs) / (1000 * 60 * 60 * 24);
+                        if (ageDays > maxAgeDays) return false;
+                    }
+
+                    if (keyword) {
+                        const haystack = [
+                            item.related_order_no,
+                            item.remark,
+                            item.change_type,
+                            item.usage_endpoint,
+                        ].map((v) => String(v || '').toLowerCase()).join(' ');
+                        if (!haystack.includes(keyword)) return false;
+                    }
+
+                    return true;
+                });
+            }
+
+            function renderLedgerByFilters() {
+                const filtered = applyBillFilters(ledgerSource || []);
+                if (billFilterResultEl) {
+                    billFilterResultEl.textContent = `筛选后显示 ${filtered.length} 条`;
+                }
+                renderList(ledgerEl, formatLedger(filtered), '暂无账单记录');
+            }
+
+            function formatLedger(list) {
+                return (list || []).map((item) => {
+                    const summary = humanizeLedgerItem(item);
+                    return `<div class="wallet-item">
+                        <div class="wallet-item-top">
+                            <span class="wallet-item-title">${escapeHtml(summary.title)}</span>
+                            <span class="wallet-tag">${escapeHtml(toLocalText(item.created_at || ''))}</span>
+                        </div>
+                        <div class="wallet-item-meta">
+                            <span class="wallet-tag">可用余额 ${escapeHtml(item.available_after || 0)} 代币</span>
+                            <span class="wallet-tag">冻结 ${escapeHtml(item.reserved_after || 0)} 代币</span>
+                            <span class="wallet-tag">${escapeHtml((summary.details && summary.details[0]) || '-')}</span>
+                            <span class="wallet-tag">${escapeHtml((summary.details && summary.details[1]) || '-')}</span>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            function formatUsage(list) {
+                return (list || []).map((item) => {
+                    const status = item.status || 'reserved';
+                    return `<div class="wallet-item">
+                        <div class="wallet-item-top">
+                            <span class="wallet-item-title">${escapeHtml(item.endpoint || '-')} · ${escapeHtml(item.model || '-')}</span>
+                            <span class="wallet-tag ${normalizeStatusClass(status)}">${escapeHtml(status)}</span>
+                        </div>
+                        <div class="wallet-item-meta">
+                            <span class="wallet-tag">总 Token ${escapeHtml(item.total_tokens || 0)}</span>
+                            <span class="wallet-tag">预占 ${escapeHtml(item.coins_reserved || 0)} 代币</span>
+                            <span class="wallet-tag">实扣 ${escapeHtml(item.coins_charged || 0)} 代币</span>
+                            <span class="wallet-tag">${escapeHtml(item.created_at || '-')}</span>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            async function loadSummary() {
+                setStatus('正在加载钱包信息...');
+                try {
+                    const response = await fetch('/wallet/summary');
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || '加载钱包信息失败');
+
+                    if (availableEl) availableEl.textContent = `${data.wallet.available_coins} 代币`;
+                    if (rechargedEl) rechargedEl.textContent = `${data.wallet.total_recharged_coins} 代币`;
+                    if (consumedEl) consumedEl.textContent = `${data.wallet.total_consumed_coins} 代币`;
+
+                    pricingHintEl.textContent = `当前计费：1000 Token = ${data.pricing.coins_per_1000_tokens} 代币；充值换算：1 元 = ${data.pricing.coins_per_yuan} 代币；最低充值 ${data.pricing.min_recharge_amount_yuan} 元。${data.pricing.payments_ready ? '支付宝参数已就绪。' : '支付宝参数未配置完整，暂时不能正式下单。'}`;
+
+                    if (usagePanelEl) {
+                        usagePanelEl.style.display = data?.pricing?.can_view_usage ? '' : 'none';
+                    }
+
+                    renderList(ordersEl, formatOrders(data.recent_orders || []), '暂无充值订单');
+                    ledgerSource = data.recent_ledger || [];
+                    renderLedgerByFilters();
+                    if (data?.pricing?.can_view_usage) {
+                        renderList(usageEl, formatUsage(data.recent_usage || []), '暂无模型计费记录');
+                    }
+                    setStatus('钱包信息已刷新');
+                } catch (error) {
+                    setStatus('加载钱包信息失败：' + error.message);
+                }
+            }
+
+            btnRefresh.addEventListener('click', loadSummary);
+            [billTypeEl, billFeatureEl, billTimeEl].forEach((el) => {
+                if (el) el.addEventListener('change', renderLedgerByFilters);
+            });
+            if (billKeywordEl) billKeywordEl.addEventListener('input', renderLedgerByFilters);
+            if (billResetEl) {
+                billResetEl.addEventListener('click', () => {
+                    if (billTypeEl) billTypeEl.value = 'all';
+                    if (billFeatureEl) billFeatureEl.value = 'all';
+                    if (billTimeEl) billTimeEl.value = 'all';
+                    if (billKeywordEl) billKeywordEl.value = '';
+                    renderLedgerByFilters();
+                });
+            }
+            btnRecharge.addEventListener('click', async () => {
+                const raw = (amountEl.value || '').trim();
+                if (!raw) {
+                    setStatus('请输入充值金额');
+                    return;
+                }
+
+                setButtonLoading(btnRecharge, true, '下单中...');
+                setStatus('正在创建支付宝订单...');
+                try {
+                    const response = await fetch('/payment/alipay/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ amount_yuan: raw })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || '创建订单失败');
+
+                    resultEl.style.display = 'block';
+                    resultEl.textContent = `订单 ${data.order_no} 已创建，金额 ${data.amount_yuan} 元，对应 ${data.coins} 代币。已为你打开支付宝支付页面。`;
+                    if (data.pay_url) window.open(data.pay_url, '_blank', 'noopener');
+                    await loadSummary();
+                } catch (error) {
+                    resultEl.style.display = 'block';
+                    resultEl.textContent = '创建订单失败：' + error.message;
+                    setStatus('创建支付宝订单失败：' + error.message);
+                } finally {
+                    setButtonLoading(btnRecharge, false);
+                }
+            });
+
+            loadSummary();
         }
 
         function initKnowledgePage() {
@@ -2944,6 +3582,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             if (ACTIVE_PAGE === 'basic') initBasicPage();
+            else if (ACTIVE_PAGE === 'wallet') initWalletPage();
             else if (ACTIVE_PAGE === 'prompts') initPromptPage();
             else if (ACTIVE_PAGE === 'outline') initOutlinePage();
             else if (ACTIVE_PAGE === 'chapters') initChaptersPage();

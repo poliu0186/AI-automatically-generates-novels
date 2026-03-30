@@ -16,3 +16,8 @@ openai
 Flask-Login
 Flask-SQLAlchemy
 psycopg2-binary
+alipay-sdk-python
+cryptography
+waitress
+gunicorn
+gevent

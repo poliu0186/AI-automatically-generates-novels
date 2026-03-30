@@ -15,6 +15,7 @@ def home():
 def workspace_page(page):
     allowed_pages = {
         'basic',
+        'wallet',
         'prompts',
         'outline',
         'chapters',
