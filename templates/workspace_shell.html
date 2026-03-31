@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小说创作工作台</title>
+    <script>
+        (function () {
+            const theme = localStorage.getItem('workspaceTheme') === 'dark' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='workspace-shell.css') }}">
 </head>
 <body>
@@ -13,7 +19,11 @@
             <div class="brand-text">Novel Studio</div>
         </div>
         <div class="topbar-right">
-            <span class="user-text">{{ user.username }}</span>
+            <div class="theme-switcher" role="group" aria-label="界面主题切换">
+                <button class="theme-option" id="theme-light" type="button" data-theme="light">浅色</button>
+                <button class="theme-option" id="theme-dark" type="button" data-theme="dark">暗色</button>
+            </div>
+            <button class="link-btn" id="topbar-user-center" type="button">{{ user.username }}</button>
             {% if user.is_admin %}
             <a class="link-btn" href="{{ url_for('admin.admin_dashboard') }}">管理员</a>
             {% endif %}
@@ -26,23 +36,25 @@
             <button class="collapse-btn" id="collapse-btn" type="button" title="折叠/展开导航">☰</button>
             <nav class="menu" id="menu">
                 <button class="menu-item active" data-page="basic" type="button"><span class="icon">🧱</span><span class="label">作品设定</span></button>
-                <button class="menu-item" data-page="wallet" type="button"><span class="icon">💰</span><span class="label">钱包充值</span></button>
                 <button class="menu-item" data-page="prompts" type="button"><span class="icon">🧠</span><span class="label">创作策略</span></button>
                 <button class="menu-item" data-page="outline" type="button"><span class="icon">🗺️</span><span class="label">生成大纲</span></button>
                 <button class="menu-item" data-page="chapters" type="button"><span class="icon">📚</span><span class="label">写作章节</span></button>
                 <button class="menu-item" data-page="export" type="button"><span class="icon">📦</span><span class="label">导出成稿</span></button>
+                <button class="menu-item" data-page="review" type="button"><span class="icon">✅</span><span class="label">自动审核</span></button>
                 <div class="menu-group open" id="advanced-menu-group">
                     <button class="menu-item menu-group-title" id="advanced-menu-toggle" type="button" aria-expanded="true">
                         <span class="icon">⚙️</span>
-                        <span class="label">高级设置</span>
+                        <span class="label">创作工具</span>
                         <span class="chevron">▾</span>
                     </button>
                     <div class="menu-sub-list" id="advanced-sub-list">
                         <button class="menu-sub-item" data-page="advanced-contextmenu" type="button"><span class="icon">🧩</span><span class="label">右键设置</span></button>
+                        <button class="menu-sub-item" data-page="advanced-autosplit" type="button"><span class="icon">✂️</span><span class="label">自动拆书</span></button>
                         <button class="menu-sub-item" data-page="advanced-knowledge" type="button"><span class="icon">📖</span><span class="label">知识库</span></button>
                         <button class="menu-sub-item" data-page="advanced-mindmap" type="button"><span class="icon">🧭</span><span class="label">思维导图大纲</span></button>
                     </div>
                 </div>
+                <button class="menu-item" data-page="wallet" type="button"><span class="icon">💰</span><span class="label">用户中心</span></button>
             </nav>
         </aside>
 
@@ -61,10 +73,42 @@
             const sidebar = document.getElementById('sidebar');
             const collapseBtn = document.getElementById('collapse-btn');
             const frame = document.getElementById('workspace-frame');
+            const topbarUserCenter = document.getElementById('topbar-user-center');
+            const themeButtons = document.querySelectorAll('.theme-option');
             const topItems = document.querySelectorAll('.menu-item[data-page]');
             const subItems = document.querySelectorAll('.menu-sub-item');
             const groupTitle = document.getElementById('advanced-menu-toggle');
             const advancedGroup = document.getElementById('advanced-menu-group');
+            const THEME_KEY = 'workspaceTheme';
+
+            function getCurrentTheme() {
+                return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
+            }
+
+            function updateThemeButtons(theme) {
+                themeButtons.forEach((button) => {
+                    const active = button.dataset.theme === theme;
+                    button.classList.toggle('active', active);
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+            }
+
+            function applyTheme(theme, persist = true) {
+                const safeTheme = theme === 'dark' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', safeTheme);
+                if (persist) {
+                    localStorage.setItem(THEME_KEY, safeTheme);
+                }
+                updateThemeButtons(safeTheme);
+
+                try {
+                    if (frame.contentWindow) {
+                        frame.contentWindow.postMessage({ type: 'workspace-theme', theme: safeTheme }, window.location.origin);
+                    }
+                } catch (error) {
+                    // noop
+                }
+            }
 
             function setActive(page) {
                 topItems.forEach((item) => {
@@ -75,7 +119,7 @@
                 });
 
                 if (groupTitle) {
-                    const inAdvanced = page.startsWith('advanced-');
+                    const inAdvanced = Array.from(subItems).some((item) => item.dataset.page === page);
                     groupTitle.classList.toggle('active', inAdvanced);
                     if (inAdvanced && advancedGroup) {
                         advancedGroup.classList.add('open');
@@ -92,6 +136,10 @@
             topItems.forEach((item) => {
                 item.addEventListener('click', () => openPage(item.dataset.page));
             });
+
+            if (topbarUserCenter) {
+                topbarUserCenter.addEventListener('click', () => openPage('wallet'));
+            }
 
             subItems.forEach((item) => {
                 item.addEventListener('click', () => openPage(item.dataset.page));
@@ -113,12 +161,26 @@
                 sidebar.classList.add('collapsed');
             }
 
+            updateThemeButtons(getCurrentTheme());
+
+            themeButtons.forEach((button) => {
+                button.addEventListener('click', () => applyTheme(button.dataset.theme));
+            });
+
             frame.addEventListener('load', () => {
                 try {
                     const page = frame.contentWindow.location.pathname.split('/').pop();
                     if (page) setActive(page);
                 } catch (error) {
                     // noop
+                }
+
+                applyTheme(getCurrentTheme(), false);
+            });
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === THEME_KEY) {
+                    applyTheme(getCurrentTheme(), false);
                 }
             });
         })();

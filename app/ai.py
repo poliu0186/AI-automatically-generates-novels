@@ -1,7 +1,7 @@
 import re
 from io import BytesIO
 from openai import OpenAI
-from flask import Blueprint, request, Response, current_app, send_file
+from flask import Blueprint, request, Response, current_app, send_file, has_app_context, stream_with_context
 from flask_login import login_required, current_user
 
 from app.billing import (
@@ -153,18 +153,35 @@ def _stream_with_billing(*, endpoint_name, endpoint_key, api_key_name, model_nam
                 usage_source=usage_source,
             )
             db.session.commit()
+        except GeneratorExit:
+            # Client closed stream early. Release reservation safely and stop silently.
+            try:
+                if has_app_context():
+                    db.session.rollback()
+                    release_usage_reservation(usage_record.id, reason=f'{endpoint_name} 客户端中断，释放预占代币')
+                    db.session.commit()
+                else:
+                    logger.warning('Stream closed after app context ended: usage_id=%s', usage_record.id)
+            except Exception:
+                if has_app_context():
+                    db.session.rollback()
+                logger.exception('客户端中断后释放预占代币失败: usage_id=%s', usage_record.id)
+            raise
         except Exception as error:
-            db.session.rollback()
+            if has_app_context():
+                db.session.rollback()
             try:
                 release_usage_reservation(usage_record.id, reason=f'{endpoint_name} 调用失败，释放预占代币: {error}')
-                db.session.commit()
+                if has_app_context():
+                    db.session.commit()
             except Exception:
-                db.session.rollback()
+                if has_app_context():
+                    db.session.rollback()
                 logger.exception('释放预占代币失败: usage_id=%s', usage_record.id)
             logger.exception('Error in %s stream', endpoint_name)
             yield f'Error: {str(error)}'
 
-    return Response(generate_stream(), mimetype='text/plain')
+    return Response(stream_with_context(generate_stream()), mimetype='text/plain')
 
 
 @api_bp.route('/gen', methods=['POST'])

@@ -6,6 +6,36 @@
     --muted: #627487;
     --brand: #1f6fb2;
     --brand-2: #2c92e8;
+    --shell-glow-1: #f4fbff;
+    --shell-glow-2: #e9f0f7;
+    --topbar-bg: rgba(255, 255, 255, 0.9);
+    --surface-soft: #f7fbff;
+    --surface-soft-2: #f9fbfe;
+    --surface-accent: #e8f2fc;
+    --surface-accent-border: #bfd7ee;
+    --surface-hover-border: #c8d9ea;
+    --frame-bg: #ffffff;
+    --danger-ink: #a12b2b;
+}
+
+html[data-theme="dark"] {
+    --shell-bg: #0b1220;
+    --panel-bg: #111b2d;
+    --line: #2a3a4d;
+    --ink: #e4edf6;
+    --muted: #9aabc0;
+    --brand: #4f9fe6;
+    --brand-2: #79c1ff;
+    --shell-glow-1: #121c2d;
+    --shell-glow-2: #0b1220;
+    --topbar-bg: rgba(14, 22, 36, 0.9);
+    --surface-soft: #152235;
+    --surface-soft-2: #182538;
+    --surface-accent: #1d2d44;
+    --surface-accent-border: #35557a;
+    --surface-hover-border: #42607f;
+    --frame-bg: #0f1828;
+    --danger-ink: #ff8e8e;
 }
 
 * {
@@ -19,7 +49,7 @@ body {
     padding: 0;
     font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     color: var(--ink);
-    background: radial-gradient(circle at top right, #f4fbff, #eef3f8 45%, #e9f0f7);
+    background: radial-gradient(circle at top right, var(--shell-glow-1), var(--shell-bg) 45%, var(--shell-glow-2));
 }
 
 .topbar {
@@ -28,7 +58,7 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 0 18px;
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--topbar-bg);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--line);
 }
@@ -61,6 +91,31 @@ body {
     gap: 10px;
 }
 
+.theme-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--panel-bg);
+}
+
+.theme-option {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.theme-option.active {
+    background: linear-gradient(135deg, var(--brand), var(--brand-2));
+    color: #fff;
+}
+
 .user-text {
     color: var(--muted);
     font-size: 14px;
@@ -73,11 +128,11 @@ body {
     border: 1px solid var(--line);
     color: var(--ink);
     font-size: 13px;
-    background: #fff;
+    background: var(--panel-bg);
 }
 
 .link-btn.danger {
-    color: #a12b2b;
+    color: var(--danger-ink);
 }
 
 .workspace {
@@ -105,8 +160,8 @@ body {
 .collapse-btn {
     border: none;
     border-bottom: 1px solid var(--line);
-    background: #f7fbff;
-    color: #38536e;
+    background: var(--surface-soft);
+    color: var(--ink);
     padding: 12px;
     cursor: pointer;
     font-size: 15px;
@@ -150,7 +205,7 @@ body {
     gap: 6px;
     margin-left: 12px;
     padding-left: 10px;
-    border-left: 2px solid #dce8f3;
+    border-left: 2px solid var(--line);
 }
 
 .menu-group:not(.open) .menu-sub-list {
@@ -159,14 +214,14 @@ body {
 
 .menu-item {
     border: 1px solid transparent;
-    background: #f7fbff;
+    background: var(--surface-soft);
     border-radius: 10px;
     padding: 10px;
     display: flex;
     align-items: center;
     gap: 10px;
     font-size: 14px;
-    color: #314d67;
+    color: var(--ink);
     cursor: pointer;
     text-align: left;
 }
@@ -182,19 +237,19 @@ body {
 }
 
 .menu-item:hover {
-    border-color: #c8d9ea;
+    border-color: var(--surface-hover-border);
 }
 
 .menu-sub-item {
     border: 1px solid transparent;
-    background: #f9fbfe;
+    background: var(--surface-soft-2);
     border-radius: 10px;
     padding: 9px 10px 9px 12px;
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    color: #48637d;
+    color: var(--muted);
     cursor: pointer;
     text-align: left;
 }
@@ -205,13 +260,13 @@ body {
 }
 
 .menu-sub-item.active {
-    background: #e8f2fc;
-    border-color: #bfd7ee;
-    color: #1f6fb2;
+    background: var(--surface-accent);
+    border-color: var(--surface-accent-border);
+    color: var(--brand-2);
 }
 
 .menu-sub-item:hover {
-    border-color: #c8d9ea;
+    border-color: var(--surface-hover-border);
 }
 
 .sidebar.collapsed .label {
@@ -245,7 +300,26 @@ body {
     width: 100%;
     height: 100%;
     border: none;
-    background: #fff;
+    background: var(--frame-bg);
+}
+
+@media (max-width: 760px) {
+    .topbar {
+        height: auto;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .workspace {
+        height: calc(100vh - 88px);
+    }
+
+    .topbar-right {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
 }
 
 @media (max-width: 1024px) {

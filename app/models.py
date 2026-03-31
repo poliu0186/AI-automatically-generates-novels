@@ -8,15 +8,19 @@ class User(UserMixin, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
+    email = db.Column(db.String(255), unique=True, nullable=True, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
+    locked_until = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     wallet_account = db.relationship('WalletAccount', back_populates='user', uselist=False, cascade='all, delete-orphan')
     recharge_orders = db.relationship('RechargeOrder', back_populates='user', cascade='all, delete-orphan')
     wallet_ledgers = db.relationship('WalletLedger', back_populates='user', cascade='all, delete-orphan')
     llm_usage_records = db.relationship('LLMUsageRecord', back_populates='user', cascade='all, delete-orphan')
+    password_reset_requests = db.relationship('PasswordResetRequest', back_populates='user', cascade='all, delete-orphan')
 
     def get_id(self):
         return str(self.id)
@@ -36,6 +40,19 @@ class WalletAccount(db.Model):
 
     user = db.relationship('User', back_populates='wallet_account')
     ledgers = db.relationship('WalletLedger', back_populates='wallet_account', cascade='all, delete-orphan')
+
+
+class PasswordResetRequest(db.Model):
+    __tablename__ = 'password_reset_requests'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    token_hash = db.Column(db.String(128), nullable=False, unique=True, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+
+    user = db.relationship('User', back_populates='password_reset_requests')
 
 
 class RechargeOrder(db.Model):

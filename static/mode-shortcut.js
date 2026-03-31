@@ -302,7 +302,7 @@ function initializeElements() {
             </div>
             <div class="import-export-buttons">
                 <button class="add-button" onclick="exportSettings()">导出设置</button>
-                <input type="file" id="import-file" style="display: none" onChange="importSettings(event)">
+                <input type="file" id="import-file" accept=".json" style="display: none" onChange="importSettings(event)">
                 <button class="add-button" onclick="document.getElementById('import-file').click()">导入设置</button>
             </div>
             <textarea class="export-content" id="export-content" readonly></textarea>
@@ -539,8 +539,25 @@ function exportSettings() {
 }
 
 function importSettings(event) {
+    const IMPORT_MAX_SIZE = 5 * 1024 * 1024;
+    const IMPORT_ALLOWED_EXTENSIONS = ['.json'];
+
     const file = event.target.files[0];
     if (!file) return;
+
+    const fileName = (file.name || '').toLowerCase();
+    const isValidExt = IMPORT_ALLOWED_EXTENSIONS.some(ext => fileName.endsWith(ext));
+    if (!isValidExt) {
+        alert('仅支持导入 .json 设置文件');
+        event.target.value = '';
+        return;
+    }
+
+    if (file.size > IMPORT_MAX_SIZE) {
+        alert(`导入文件不能超过 ${Math.floor(IMPORT_MAX_SIZE / 1024 / 1024)}MB`);
+        event.target.value = '';
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = function(e) {

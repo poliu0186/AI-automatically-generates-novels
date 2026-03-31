@@ -1,5 +1,8 @@
 // 添加导入导出按钮到页面
 $(document).ready(function() {
+    const IMPORT_MAX_SIZE = 5 * 1024 * 1024;
+    const IMPORT_ALLOWED_EXTENSIONS = ['.txt'];
+
     const buttonContainer = $(`
         <div id="config-buttons" style="position:fixed;top:20px;right:20px;z-index:1000">
             <button id="exportBtn" class="primary-button" style="margin-right:10px">
@@ -84,6 +87,20 @@ $(document).ready(function() {
     $('#importFile').change(function(e) {
         const file = e.target.files[0];
         if (!file) return;
+
+        const fileName = (file.name || '').toLowerCase();
+        const isValidExt = IMPORT_ALLOWED_EXTENSIONS.some(ext => fileName.endsWith(ext));
+        if (!isValidExt) {
+            alert('仅支持导入 .txt 配置文件');
+            e.target.value = '';
+            return;
+        }
+
+        if (file.size > IMPORT_MAX_SIZE) {
+            alert(`导入文件不能超过 ${Math.floor(IMPORT_MAX_SIZE / 1024 / 1024)}MB`);
+            e.target.value = '';
+            return;
+        }
         
         $('#importBtn').addClass('loading').prop('disabled', true);
         

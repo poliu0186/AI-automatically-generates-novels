@@ -4,8 +4,9 @@ class BookSplitter {
     constructor() {
         // 配置常量
         this.CONFIG = {
-            MAX_FILE_SIZE: 50 * 1024 * 1024,
+            MAX_FILE_SIZE: 5 * 1024 * 1024,
             STORAGE_KEY: 'bookSplitter_v1_data',
+            ALLOWED_EXTENSIONS: ['.txt'],
             SUPPORTED_ENCODINGS: ['UTF-8', 'GBK', 'GB2312', 'BIG5'],
             MAX_RETRIES: 3,
             RETRY_DELAY: 1000,
@@ -571,7 +572,7 @@ class BookSplitter {
     getStatusIcon(status) {
         const icons = {
             pending: '⚪',
-            processing: '������',
+            processing: '������',
             success: '✅',
             error: '❌'
         };
@@ -902,8 +903,17 @@ this.updateChapterStatus(container, chapter.status || 'pending');
             const file = e.target?.files?.[0];
             if (!file) return;
 
+            const fileName = (file.name || '').toLowerCase();
+            const isValidExt = this.CONFIG.ALLOWED_EXTENSIONS.some(ext => fileName.endsWith(ext));
+            if (!isValidExt) {
+                this.showStatus('仅支持导入 .txt 文件', 'error');
+                e.target.value = '';
+                return;
+            }
+
             if (file.size > this.CONFIG.MAX_FILE_SIZE) {
                 this.showStatus(`文件大小不能超过${this.CONFIG.MAX_FILE_SIZE / 1024 / 1024}MB`, 'error');
+                e.target.value = '';
                 return;
             }
 

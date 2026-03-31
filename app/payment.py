@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user, login_required
 
-from app.billing import apply_recharge, create_recharge_order, get_or_create_wallet
+from app.billing import InsufficientBalanceError, apply_recharge, charge_feature_coins, create_recharge_order, get_or_create_wallet
 from app.extensions import db
 from app.models import LLMUsageRecord, RechargeOrder, WalletLedger
 
@@ -156,6 +156,7 @@ def wallet_summary():
         'pricing': {
             'coins_per_1000_tokens': current_app.config['COINS_PER_1000_TOKENS'],
             'coins_per_yuan': current_app.config['COINS_PER_YUAN'],
+            'review_audit_coins': int(current_app.config.get('REVIEW_AUDIT_COINS', '2') or 2),
             'min_recharge_amount_yuan': current_app.config['MIN_RECHARGE_AMOUNT_YUAN'],
             'payments_ready': _alipay_ready(),
             'payment_channel': 'alipay',
@@ -317,3 +318,52 @@ def dev_mark_recharge_paid(order_no):
         return jsonify({'error': f'开发充值入账失败：{error}'}), 500
 
     return jsonify({'ok': True, 'order_no': order.order_no, 'status': order.status, 'coins': order.coins})
+
+
+@payment_bp.route('/wallet/feature-charge', methods=['POST'])
+@login_required
+def wallet_feature_charge():
+    data = request.get_json(silent=True) or request.form.to_dict()
+    feature_code = str(data.get('feature_code') or '').strip().lower()
+    request_id = str(data.get('request_id') or '').strip()
+
+    feature_map = {
+        'review_audit': {
+            'coins': int(current_app.config.get('REVIEW_AUDIT_COINS', '2') or 2),
+            'remark': '自动审核功能扣费 2 代币'
+        }
+    }
+
+    feature = feature_map.get(feature_code)
+    if not feature:
+        return jsonify({'error': '不支持的功能扣费类型'}), 400
+
+    if not request_id:
+        return jsonify({'error': '缺少请求标识'}), 400
+
+    idempotency_key = f'feature:{feature_code}:{request_id}'
+
+    try:
+        wallet, _ledger = charge_feature_coins(
+            current_user.id,
+            feature_code=feature_code,
+            coins=feature['coins'],
+            idempotency_key=idempotency_key,
+            remark=feature['remark']
+        )
+        db.session.commit()
+    except InsufficientBalanceError as error:
+        db.session.rollback()
+        return jsonify({'error': str(error)}), 402
+    except Exception as error:
+        db.session.rollback()
+        current_app.logger.exception('功能扣费失败: feature=%s user_id=%s', feature_code, current_user.id)
+        return jsonify({'error': f'功能扣费失败：{error}'}), 500
+
+    return jsonify({
+        'ok': True,
+        'feature_code': feature_code,
+        'charged_coins': feature['coins'],
+        'available_coins': wallet.available_coins,
+        'reserved_coins': wallet.reserved_coins,
+    })

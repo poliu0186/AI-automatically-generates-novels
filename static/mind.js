@@ -942,6 +942,25 @@ function bindEditorEvents(editor, element, type) {
             input.onchange = async (e) => {
                 try {
                     const file = e.target.files[0];
+                    if (!file) return;
+
+                    const IMPORT_ALLOWED_EXTENSIONS = ['.json'];
+                    const IMPORT_MAX_SIZE = 5 * 1024 * 1024;
+                    const fileName = (file.name || '').toLowerCase();
+                    const isValidExt = IMPORT_ALLOWED_EXTENSIONS.some(ext => fileName.endsWith(ext));
+
+                    if (!isValidExt) {
+                        alert('仅支持导入 .json 文件');
+                        e.target.value = '';
+                        return;
+                    }
+
+                    if (file.size > IMPORT_MAX_SIZE) {
+                        alert(`导入文件不能超过 ${Math.floor(IMPORT_MAX_SIZE / 1024 / 1024)}MB`);
+                        e.target.value = '';
+                        return;
+                    }
+
                     const text = await file.text();
                     const data = JSON.parse(text);
 

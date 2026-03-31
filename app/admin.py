@@ -36,6 +36,10 @@ def admin_user_action(user_id):
     elif action == 'toggle_active':
         user.is_active = not user.is_active
         flash(f'已将用户 {user.username} 的状态设置为 {"启用" if user.is_active else "禁用"}。', 'success')
+    elif action == 'unlock':
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        flash(f'已解锁用户 {user.username}。', 'success')
     elif action == 'delete':
         db.session.delete(user)
         flash(f'已删除用户 {user.username}。', 'success')

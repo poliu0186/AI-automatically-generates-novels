@@ -13,11 +13,18 @@ def home():
 @main_bp.route('/workspace/page/<page>')
 @login_required
 def workspace_page(page):
+    if page == 'autosplit':
+        return redirect(url_for('main.workspace_page', page='advanced-autosplit'))
+    if page == 'advanced-review':
+        return redirect(url_for('main.workspace_page', page='review'))
+
     allowed_pages = {
         'basic',
         'wallet',
         'prompts',
         'outline',
+        'review',
+        'advanced-autosplit',
         'chapters',
         'export',
         'advanced-contextmenu',
