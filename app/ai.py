@@ -331,7 +331,7 @@ def generate():
         endpoint_name='/gen',
         endpoint_key='API_ENDPOINT_1',
         api_key_name='API_KEY_1',
-        model_name='glm-4.5-air',
+        model_name=(current_app.config.get('MODEL_NAME_1') or 'glm-4.5-air').strip(),
     )
 
 
@@ -342,7 +342,7 @@ def generate2():
         endpoint_name='/gen2',
         endpoint_key='API_ENDPOINT_2',
         api_key_name='API_KEY_2',
-        model_name='glm-4.5-air',
+        model_name=(current_app.config.get('MODEL_NAME_2') or 'glm-4.5-air').strip(),
     )
 
 

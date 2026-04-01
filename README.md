@@ -83,6 +83,8 @@ LOG_BACKUP_COUNT=10
 
 可在 `.env` 配置：
 
+- `MODEL_NAME_1`：`/gen` 使用的模型名
+- `MODEL_NAME_2`：`/gen2` 使用的模型名
 - `API_KEY_POOL_1`：`/gen` 的 key 池，逗号分隔
 - `API_KEY_POOL_2`：`/gen2` 的 key 池，逗号分隔
 - `API_ENDPOINT_POOL_1`：`/gen` 的 endpoint 池（可选）
@@ -95,10 +97,12 @@ LOG_BACKUP_COUNT=10
 ```env
 API_ENDPOINT_1=https://open.bigmodel.cn/api/paas/v4/
 API_KEY_1=ENC:...
+MODEL_NAME_1=glm-4.5-air
 API_KEY_POOL_1=ENC:keyA,ENC:keyB,ENC:keyC
 
 API_ENDPOINT_2=https://open.bigmodel.cn/api/paas/v4/
 API_KEY_2=ENC:...
+MODEL_NAME_2=glm-4.5-air
 API_KEY_POOL_2=ENC:keyD,ENC:keyE
 
 API_ROUTE_FAILURE_THRESHOLD=2
@@ -106,6 +110,32 @@ API_ROUTE_COOLDOWN_SECONDS=30
 ```
 
 说明：如果不配置 `*_POOL_*`，系统会回退到原有单 key 行为。
+
+## 切换国内大模型
+
+主工程已改为通过 `.env` 配置模型名，后续切换国内大模型通常不需要再改 Python 代码，只需要替换 endpoint、key 和 model name。
+
+常见示例：
+
+```env
+# 智谱 GLM
+API_ENDPOINT_1=https://open.bigmodel.cn/api/paas/v4/
+MODEL_NAME_1=glm-4.5-air
+
+# DeepSeek（OpenAI 兼容网关场景）
+# API_ENDPOINT_1=https://api.deepseek.com
+# MODEL_NAME_1=deepseek-chat
+
+# 阿里通义千问（百炼 OpenAI 兼容场景）
+# API_ENDPOINT_1=https://dashscope.aliyuncs.com/compatible-mode/v1
+# MODEL_NAME_1=qwen-plus
+
+# 豆包（火山方舟 OpenAI 兼容场景）
+# API_ENDPOINT_1=https://ark.cn-beijing.volces.com/api/v3
+# MODEL_NAME_1=你的豆包模型ID
+```
+
+前提：目标平台必须提供 OpenAI 兼容接口，并支持 `chat.completions` 流式输出；如果不是兼容接口，才需要额外改代码做适配。
 
 
 
