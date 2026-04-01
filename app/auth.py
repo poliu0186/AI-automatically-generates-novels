@@ -228,8 +228,9 @@ def register_user_login_failure(user):
         return False
     check_and_auto_unlock_user(user)
     user.failed_login_attempts = int(user.failed_login_attempts or 0) + 1
+    max_attempts = max(int(current_app.config.get('LOGIN_MAX_ATTEMPTS', 10) or 10), 1)
     is_locked_now = False
-    if user.failed_login_attempts >= 5:
+    if user.failed_login_attempts >= max_attempts:
         user.locked_until = datetime.utcnow() + timedelta(hours=24)
         is_locked_now = True
     db.session.commit()
@@ -456,7 +457,6 @@ def login():
 
         if not is_login_captcha_valid(captcha):
             flash('图形验证码错误或已过期，请重试。', 'danger')
-            register_user_login_failure(user)
             return render_template('login.html')
 
         if user and check_password_hash(user.password_hash, password):
@@ -471,7 +471,8 @@ def login():
         else:
             locked_now = register_user_login_failure(user)
             if locked_now:
-                flash('连续 5 次登录失败，账号已锁定 24 小时。可联系管理员解锁。', 'danger')
+                max_attempts = max(int(current_app.config.get('LOGIN_MAX_ATTEMPTS', 10) or 10), 1)
+                flash(f'连续 {max_attempts} 次登录失败，账号已锁定 24 小时。可联系管理员解锁。', 'danger')
             else:
                 flash('用户名或密码错误，请重试。', 'danger')
 
@@ -530,7 +531,6 @@ def admin_login():
 
         if not is_login_captcha_valid(captcha):
             flash('图形验证码错误或已过期，请重试。', 'danger')
-            register_user_login_failure(user)
             return render_template('admin_login.html')
 
         if user and check_password_hash(user.password_hash, password):
@@ -549,7 +549,8 @@ def admin_login():
         else:
             locked_now = register_user_login_failure(user)
             if locked_now:
-                flash('连续 5 次登录失败，账号已锁定 24 小时。可联系管理员解锁。', 'danger')
+                max_attempts = max(int(current_app.config.get('LOGIN_MAX_ATTEMPTS', 10) or 10), 1)
+                flash(f'连续 {max_attempts} 次登录失败，账号已锁定 24 小时。可联系管理员解锁。', 'danger')
             else:
                 flash('用户名或密码错误，请重试。', 'danger')
 
@@ -731,7 +732,7 @@ def change_password_page():
 def logout():
     logout_user()
     flash('您已退出登录。', 'success')
-    return redirect(url_for('auth.login'))
+    return redirect(url_for('main.home'))
 
 
 @auth_bp.route('/auth/change-password', methods=['POST'])

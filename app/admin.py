@@ -5,12 +5,13 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import or_
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.activity_logging import DEFAULT_USER_ACTION_LOG_MODE, USER_ACTION_LOG_MODES
-from app.auth import admin_required
+from app.auth import admin_required, get_password_strength_error
 from app.billing import InsufficientBalanceError, admin_adjust_wallet
 from app.extensions import db
-from app.models import AdminSetting, RechargeOrder, SystemUserPermission, User, UserActionLog, WalletLedger
+from app.models import AdminSetting, RechargeOrder, SystemUserPermission, User, UserActionLog, UserMessage, WalletLedger
 from app.workspace_nav import (
     WORKSPACE_NAV_ITEMS,
     WORKSPACE_NAV_SETTING_KEY,
@@ -141,6 +142,8 @@ def admin_dashboard():
         'permissions': 'can_manage_users',
         'orders': 'can_view_orders',
         'logs': 'can_view_logs',
+        'messages': 'can_manage_users',
+        'security': 'can_manage_users',
     }
     need_permission = tab_permissions.get(active_tab, 'can_manage_users')
     if not _has_permission(need_permission):
@@ -175,6 +178,7 @@ def admin_dashboard():
     order_query_text = (request.args.get('order_q') or '').strip()
     ledger_query_text = (request.args.get('ledger_q') or '').strip()
     user_log_query_text = (request.args.get('user_log_q') or '').strip()
+    user_message_query_text = (request.args.get('message_q') or '').strip()
 
     orders_query = RechargeOrder.query.outerjoin(User, RechargeOrder.user_id == User.id)
     if order_query_text:
@@ -205,6 +209,17 @@ def admin_dashboard():
             User.username.ilike(f'%{user_log_query_text}%')
         ))
     user_logs_pagination = _paginate_query(user_logs_query.order_by(UserActionLog.created_at.desc()), _safe_page('user_log_page'))
+
+    user_messages_query = UserMessage.query.outerjoin(User, UserMessage.user_id == User.id)
+    if user_message_query_text:
+        user_messages_query = user_messages_query.filter(or_(
+            User.username.ilike(f'%{user_message_query_text}%'),
+            UserMessage.subject.ilike(f'%{user_message_query_text}%'),
+            UserMessage.content.ilike(f'%{user_message_query_text}%'),
+            UserMessage.admin_reply.ilike(f'%{user_message_query_text}%')
+        ))
+    user_messages_pagination = _paginate_query(user_messages_query.order_by(UserMessage.created_at.desc()), _safe_page('message_page'))
+
     workspace_nav_enabled = set(get_workspace_enabled_pages())
 
     return render_template(
@@ -217,9 +232,11 @@ def admin_dashboard():
         order_query_text=order_query_text,
         ledger_query_text=ledger_query_text,
         user_log_query_text=user_log_query_text,
+        user_message_query_text=user_message_query_text,
         orders_pagination=orders_pagination,
         ledger_pagination=ledger_pagination,
         user_logs_pagination=user_logs_pagination,
+        user_messages_pagination=user_messages_pagination,
         active_tab=active_tab,
         user_log_mode=_get_user_log_mode(),
         user_log_mode_labels=USER_LOG_MODE_LABELS,
@@ -232,6 +249,34 @@ def admin_dashboard():
         workspace_nav_items=WORKSPACE_NAV_ITEMS,
         workspace_nav_enabled=workspace_nav_enabled,
     )
+
+
+@admin_bp.route('/messages/<int:message_id>/reply', methods=['POST'])
+@login_required
+@admin_required
+def admin_reply_user_message(message_id):
+    if not _has_permission('can_manage_users'):
+        flash('当前账号没有用户管理权限。', 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='messages'))
+
+    message = UserMessage.query.get(message_id)
+    if not message:
+        flash('消息不存在。', 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='messages'))
+
+    reply = (request.form.get('admin_reply') or '').strip()
+    if not reply:
+        flash('回复内容不能为空。', 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='messages'))
+
+    message.admin_reply = reply[:4000]
+    message.status = 'replied'
+    message.replied_by = current_user.id
+    message.replied_at = datetime.utcnow()
+    db.session.commit()
+
+    flash('已回复该用户消息。', 'success')
+    return redirect(url_for('admin.admin_dashboard', tab='messages'))
 
 
 @admin_bp.route('/user/<int:user_id>/action', methods=['POST'])
@@ -270,6 +315,43 @@ def admin_user_action(user_id):
 
     db.session.commit()
     return redirect(url_for('admin.admin_dashboard', tab='users'))
+
+
+@admin_bp.route('/security/change-password', methods=['POST'])
+@login_required
+@admin_required
+def admin_change_password():
+    current_password = (request.form.get('current_password') or '').strip()
+    new_password = (request.form.get('new_password') or '').strip()
+    confirm_password = (request.form.get('confirm_password') or '').strip()
+
+    if not current_password:
+        flash('请输入当前密码。', 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='security'))
+    if not new_password:
+        flash('请输入新密码。', 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='security'))
+    if new_password != confirm_password:
+        flash('两次输入的新密码不一致。', 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='security'))
+    if not check_password_hash(current_user.password_hash, current_password):
+        flash('当前密码不正确。', 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='security'))
+    if current_password == new_password:
+        flash('新密码不能与当前密码相同。', 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='security'))
+
+    strength_error = get_password_strength_error(new_password)
+    if strength_error:
+        flash(strength_error, 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='security'))
+
+    current_user.password_hash = generate_password_hash(new_password)
+    current_user.failed_login_attempts = 0
+    current_user.locked_until = None
+    db.session.commit()
+    flash('管理员密码修改成功，请妥善保管。', 'success')
+    return redirect(url_for('admin.admin_dashboard', tab='security'))
 
 
 @admin_bp.route('/settings/pricing', methods=['POST'])

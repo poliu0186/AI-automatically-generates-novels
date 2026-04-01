@@ -33,6 +33,12 @@ class User(UserMixin, db.Model):
         cascade='all, delete-orphan'
     )
     user_action_logs = db.relationship('UserActionLog', back_populates='user', cascade='all, delete-orphan')
+    user_messages = db.relationship(
+        'UserMessage',
+        back_populates='user',
+        foreign_keys='UserMessage.user_id',
+        cascade='all, delete-orphan'
+    )
 
     def get_id(self):
         return str(self.id)
@@ -203,3 +209,20 @@ class UserActionLog(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False, index=True)
 
     user = db.relationship('User', back_populates='user_action_logs')
+
+
+class UserMessage(db.Model):
+    __tablename__ = 'user_messages'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    subject = db.Column(db.String(120), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    admin_reply = db.Column(db.Text)
+    status = db.Column(db.String(24), nullable=False, default='open', index=True)
+    replied_by = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
+    replied_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False, index=True)
+
+    user = db.relationship('User', back_populates='user_messages', foreign_keys=[user_id])
+    replied_admin = db.relationship('User', foreign_keys=[replied_by])

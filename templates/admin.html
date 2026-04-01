@@ -224,6 +224,8 @@
             <a href="{{ url_for('admin.admin_dashboard', tab='permissions') }}" class="{% if active_tab == 'permissions' %}active{% endif %}">系统权限</a>
             <a href="{{ url_for('admin.admin_dashboard', tab='orders') }}" class="{% if active_tab == 'orders' %}active{% endif %}">订单流水</a>
             <a href="{{ url_for('admin.admin_dashboard', tab='logs') }}" class="{% if active_tab == 'logs' %}active{% endif %}">操作日志</a>
+            <a href="{{ url_for('admin.admin_dashboard', tab='messages') }}" class="{% if active_tab == 'messages' %}active{% endif %}">用户消息</a>
+            <a href="{{ url_for('admin.admin_dashboard', tab='security') }}" class="{% if active_tab == 'security' %}active{% endif %}">安全设置</a>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -607,6 +609,95 @@
                 </tbody>
             </table>
             {{ render_pager(user_logs_pagination, 'user_log_page', 'logs') }}
+        </div>
+        {% elif active_tab == 'messages' %}
+        <div class="section">
+            <h3 class="section-title">用户消息与管理员回复</h3>
+            <form method="get" class="toolbar-line">
+                <input type="hidden" name="tab" value="messages">
+                <div class="field">
+                    <label>消息检索</label>
+                    <input type="text" name="message_q" value="{{ user_message_query_text }}" placeholder="用户 / 主题 / 内容 / 回复内容">
+                </div>
+                <div>
+                    <button type="submit" class="btn primary">检索消息</button>
+                    <a href="{{ url_for('admin.admin_dashboard', tab='messages') }}" class="btn secondary" style="display:inline-block;line-height:18px;text-decoration:none;">重置</a>
+                </div>
+            </form>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户</th>
+                        <th>主题</th>
+                        <th>问题内容</th>
+                        <th>状态</th>
+                        <th>管理员回复</th>
+                        <th>时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in user_messages_pagination['items'] %}
+                    <tr>
+                        <td>{{ item.id }}</td>
+                        <td>{{ item.user.username if item.user else item.user_id }}</td>
+                        <td>{{ item.subject }}</td>
+                        <td style="white-space: pre-wrap;">{{ item.content }}</td>
+                        <td>
+                            {% if item.status == 'replied' %}
+                            <span class="tag admin">已回复</span>
+                            {% else %}
+                            <span class="tag">待处理</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.admin_reply %}
+                            <div style="white-space: pre-wrap;">{{ item.admin_reply }}</div>
+                            <div class="hint" style="margin-top:6px;">回复时间：{{ item.replied_at or '-' }}</div>
+                            {% endif %}
+                            <form method="post" action="{{ url_for('admin.admin_reply_user_message', message_id=item.id) }}" style="margin-top:8px;">
+                                <div class="field">
+                                    <textarea name="admin_reply" rows="3" placeholder="输入回复内容...">{{ item.admin_reply or '' }}</textarea>
+                                </div>
+                                <button type="submit" class="btn primary">保存回复</button>
+                            </form>
+                        </td>
+                        <td>
+                            提交：{{ item.created_at }}
+                            <br>
+                            回复：{{ item.replied_at or '-' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="hint">暂无用户消息。</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {{ render_pager(user_messages_pagination, 'message_page', 'messages') }}
+        </div>
+        {% elif active_tab == 'security' %}
+        <div class="section">
+            <h3 class="section-title">管理员密码修改</h3>
+            <p class="hint">用于管理员在后台主动修改登录密码。建议定期更换，并使用高强度密码。</p>
+            <form method="post" action="{{ url_for('admin.admin_change_password') }}" class="grid" style="max-width:560px;">
+                <div class="field" style="grid-column:1 / -1;">
+                    <label>当前密码</label>
+                    <input type="password" name="current_password" required autocomplete="current-password">
+                </div>
+                <div class="field" style="grid-column:1 / -1;">
+                    <label>新密码</label>
+                    <input type="password" name="new_password" required autocomplete="new-password" placeholder="至少 10 位，包含大小写字母、数字和特殊字符">
+                </div>
+                <div class="field" style="grid-column:1 / -1;">
+                    <label>确认新密码</label>
+                    <input type="password" name="confirm_password" required autocomplete="new-password">
+                </div>
+                <div>
+                    <button type="submit" class="btn primary">保存新密码</button>
+                </div>
+            </form>
         </div>
         {% endif %}
     </div>

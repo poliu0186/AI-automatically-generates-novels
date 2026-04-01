@@ -2487,6 +2487,7 @@
     <script>
         const ACTIVE_PAGE = '{{ active_page }}';
         const STORAGE_KEY = 'novelState_user_{{ user.id }}';
+        const GENERATION_GUARD_KEY = 'novelGenerationGuard_user_{{ user.id }}';
         let contextTarget = null;
         let selectedText = '';
 
@@ -2732,6 +2733,67 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         }
 
+        function getGenerationGuardState() {
+            try {
+                const state = JSON.parse(sessionStorage.getItem(GENERATION_GUARD_KEY));
+                return state || {};
+            } catch (error) {
+                return {};
+            }
+        }
+
+        function saveGenerationGuardState(patch) {
+            const state = { ...getGenerationGuardState(), ...patch };
+            sessionStorage.setItem(GENERATION_GUARD_KEY, JSON.stringify(state));
+        }
+
+        function resetGenerationGuardState() {
+            saveGenerationGuardState({
+                model_generation_active_count: 0,
+                outline_generation_active: false,
+                split_generation_active: false,
+                outline_generation_updated_at: 0,
+                split_generation_updated_at: 0,
+            });
+        }
+
+        function startModelGenerationGuard() {
+            const state = getGenerationGuardState();
+            const nextCount = Math.max(0, Number(state.model_generation_active_count || 0)) + 1;
+            saveGenerationGuardState({ model_generation_active_count: nextCount });
+        }
+
+        function stopModelGenerationGuard() {
+            const state = getGenerationGuardState();
+            const nextCount = Math.max(0, Number(state.model_generation_active_count || 0) - 1);
+            saveGenerationGuardState({ model_generation_active_count: nextCount });
+        }
+
+        function createStreamCheckpointSaver(saveFn, intervalMs = 200) {
+            let lastSavedAt = 0;
+            let lastSavedText = '';
+            return (text, force = false) => {
+                const nextText = String(text || '');
+                const now = Date.now();
+                if (!force) {
+                    if (nextText === lastSavedText) return;
+                    if (now - lastSavedAt < intervalMs) return;
+                }
+                lastSavedText = nextText;
+                lastSavedAt = now;
+                saveFn(nextText);
+            };
+        }
+
+        function hasActiveGenerationTask() {
+            const state = getGenerationGuardState();
+            return Boolean(
+                Number(state.model_generation_active_count || 0) > 0 ||
+                state.outline_generation_active ||
+                state.split_generation_active
+            );
+        }
+
         function setStatus(message) {
             const el = document.getElementById('status');
             if (el) el.textContent = message;
@@ -2791,26 +2853,32 @@
         async function fetchWithTimeout(url, options = {}, timeoutMs = 300000) {
             const controller = new AbortController();
             const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-            const shouldLockUi = typeof url === 'string' && /\/gen(?:$|\?)/.test(url);
+            const shouldGuardModelRequest = typeof url === 'string' && /^\/gen(?:$|\?)/.test(url);
+            let guardStarted = false;
 
             try {
-                if (shouldLockUi) {
-                    setModelBusy(true, '请暂时不要点击其他按钮或切换页面，当前大模型任务完成后会自动把结果写回当前区域。');
+                if (shouldGuardModelRequest) {
+                    startModelGenerationGuard();
+                    guardStarted = true;
                 }
-                return await fetch(url, {
+                const response = await fetch(url, {
                     ...options,
                     signal: controller.signal
                 });
+                if (guardStarted) {
+                    response.__modelGenerationGuardStarted = true;
+                }
+                return response;
             } catch (error) {
+                if (guardStarted) {
+                    stopModelGenerationGuard();
+                }
                 if (error && error.name === 'AbortError') {
                     throw new Error('请求超时，请检查模型配置或稍后重试');
                 }
                 throw error;
             } finally {
                 window.clearTimeout(timeoutId);
-                if (shouldLockUi) {
-                    setModelBusy(false);
-                }
             }
         }
 
@@ -2903,32 +2971,49 @@
             return true;
         }
 
-        async function streamToTextarea(response, textarea) {
-            if (!response.ok) {
-                const err = await response.text();
-                guideToWalletRecharge(err);
-                throw new Error(err || '请求失败');
-            }
-            if (!response.body) throw new Error('当前浏览器不支持流式响应');
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                buffer += decoder.decode(value, { stream: true });
-                textarea.value = buffer;
-                textarea.scrollTop = textarea.scrollHeight;
-            }
+        async function streamToTextarea(response, textarea, options = {}) {
+            const onChunk = typeof options.onChunk === 'function' ? options.onChunk : null;
+            const onFinish = typeof options.onFinish === 'function' ? options.onFinish : null;
+            setModelBusy(true, '请暂时不要切换页面，当前大模型任务会持续把结果写回当前区域。');
+            try {
+                if (!response.ok) {
+                    const err = await response.text();
+                    guideToWalletRecharge(err);
+                    throw new Error(err || '请求失败');
+                }
+                if (!response.body) throw new Error('当前浏览器不支持流式响应');
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    if (textarea) {
+                        textarea.value = buffer;
+                        textarea.scrollTop = textarea.scrollHeight;
+                    }
+                    if (onChunk) onChunk(buffer);
+                }
 
-            const finalText = String(buffer || '').trim();
-            if (/^Error\s*:/i.test(finalText)) {
-                const message = finalText.replace(/^Error\s*:\s*/i, '').trim() || '模型调用失败';
-                guideToWalletRecharge(message);
-                throw new Error(message);
-            }
+                const finalText = String(buffer || '').trim();
+                if (/^Error\s*:/i.test(finalText)) {
+                    const message = finalText.replace(/^Error\s*:\s*/i, '').trim() || '模型调用失败';
+                    guideToWalletRecharge(message);
+                    throw new Error(message);
+                }
 
-            return buffer;
+                if (onFinish) onFinish(buffer, false);
+                return buffer;
+            } catch (error) {
+                if (onFinish) onFinish(textarea ? textarea.value || '' : '', true);
+                throw error;
+            } finally {
+                if (response && response.__modelGenerationGuardStarted) {
+                    stopModelGenerationGuard();
+                }
+                setModelBusy(false);
+            }
         }
 
         function initBasicPage() {
@@ -5164,6 +5249,26 @@
             let manualEditable = false;
             let saveIndicatorTimer = null;
 
+            function markOutlineGenerationState(active, extraPatch = {}) {
+                saveGenerationGuardState({
+                    outline_generation_active: Boolean(active),
+                    outline_generation_updated_at: Date.now(),
+                });
+                if (Object.keys(extraPatch || {}).length) {
+                    saveState(extraPatch);
+                }
+            }
+
+            function markSplitGenerationState(active, extraPatch = {}) {
+                saveGenerationGuardState({
+                    split_generation_active: Boolean(active),
+                    split_generation_updated_at: Date.now(),
+                });
+                if (Object.keys(extraPatch || {}).length) {
+                    saveState(extraPatch);
+                }
+            }
+
             function refreshGenerateButtonLabel() {
                 if (!btnGenerate) return;
                 btnGenerate.textContent = '一键生成大纲';
@@ -5241,6 +5346,7 @@
             outline.value = state.outline || '';
             attachTextareaHistory(outline);
             refreshGenerateButtonLabel();
+            getAvailableCoinsForGuard().catch(() => null);
             if (splitPreview && state.tempContent) {
                 splitPreviewField.style.display = 'block';
                 splitPreview.value = state.tempContent;
@@ -5458,22 +5564,32 @@
 
                 const latest = getState();
                 const prompt = buildOutlinePrompt(latest);
+                const checkpoint = createStreamCheckpointSaver((text) => {
+                    markOutlineGenerationState(true, { outline: text });
+                });
                 setButtonLoading(button, true, '生成中...');
-                setStatus('正在生成大纲...');
+                markOutlineGenerationState(true);
+                setModelBusy(true, '正在连接大模型并等待首段输出，请不要切换页面。');
+                setStatus('正在连接大模型，准备生成大纲...');
                 try {
                     const response = await fetchWithTimeout('/gen', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ prompt })
                     });
-                    const text = await streamToTextarea(response, outline);
+                    const text = await streamToTextarea(response, outline, {
+                        onChunk: (partialText) => checkpoint(partialText),
+                        onFinish: (finalText) => checkpoint(finalText, true),
+                    });
                     attachTextareaHistory(outline);
-                    saveState({ outline: text, generated_outline_default: text });
+                    markOutlineGenerationState(false, { outline: text, generated_outline_default: text });
                     refreshGenerateButtonLabel();
                     setStatus('大纲生成完成');
                 } catch (error) {
+                    markOutlineGenerationState(false, { outline: outline.value || '' });
                     setStatus('大纲生成失败：' + error.message);
                 } finally {
+                    setModelBusy(false);
                     setButtonLoading(button, false);
                 }
             }
@@ -5485,12 +5601,20 @@
 
                 const latest = getState();
                 const prompt = buildChapterPrompt(latest);
+                const checkpoint = createStreamCheckpointSaver((text) => {
+                    markSplitGenerationState(true, {
+                        tempContent: text,
+                        chapters: parseChaptersFromTemp(text),
+                    });
+                });
                 setButtonLoading(button, true, '拆解中...');
-                setStatus('正在拆解章节...');
+                setModelBusy(true, '正在连接大模型并等待首段输出，请不要切换页面。');
+                setStatus('正在连接大模型，准备拆解章节...');
                 if (splitPreviewField && splitPreview) {
                     splitPreviewField.style.display = 'block';
                     splitPreview.value = '';
                 }
+                markSplitGenerationState(true, { tempContent: '', chapters: [] });
                 try {
                     const response = await fetchWithTimeout('/gen', {
                         method: 'POST',
@@ -5498,17 +5622,25 @@
                         body: JSON.stringify({ prompt })
                     });
 
-                    const text = await streamToTextarea(response, splitPreview);
+                    const text = await streamToTextarea(response, splitPreview, {
+                        onChunk: (partialText) => checkpoint(partialText),
+                        onFinish: (finalText) => checkpoint(finalText, true),
+                    });
                     if (!text.trim()) {
                         throw new Error('拆解结果为空，请检查提示词或模型配置');
                     }
                     attachTextareaHistory(splitPreview);
                     const chapters = parseChaptersFromTemp(text);
-                    saveState({ tempContent: text, chapters, generated_split_default: text });
+                    markSplitGenerationState(false, { tempContent: text, chapters, generated_split_default: text });
                     setStatus(`章节拆解完成，已生成 ${chapters.length} 个章节，请前往“写作章节”继续`);
                 } catch (error) {
+                    markSplitGenerationState(false, {
+                        tempContent: splitPreview ? (splitPreview.value || '') : '',
+                        chapters: parseChaptersFromTemp(splitPreview ? (splitPreview.value || '') : ''),
+                    });
                     setStatus('章节拆解失败：' + error.message);
                 } finally {
+                    setModelBusy(false);
                     setButtonLoading(button, false);
                 }
             }
@@ -7837,7 +7969,24 @@
             btnRecharge.addEventListener('click', async () => {
                 const raw = (amountEl.value || '').trim();
                 if (!raw) {
+                    resultEl.style.display = 'block';
+                    resultEl.textContent = '请输入充值金额（单位：元）后再创建订单。';
                     setStatus('请输入充值金额');
+                    if (amountEl) {
+                        amountEl.focus();
+                    }
+                    return;
+                }
+
+                const amountValue = Number(raw);
+                if (!Number.isFinite(amountValue) || amountValue <= 0) {
+                    resultEl.style.display = 'block';
+                    resultEl.textContent = '充值金额格式不正确，请输入大于 0 的数字。';
+                    setStatus('充值金额格式不正确');
+                    if (amountEl) {
+                        amountEl.focus();
+                        amountEl.select();
+                    }
                     return;
                 }
 
@@ -9042,6 +9191,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            resetGenerationGuardState();
             if (ACTIVE_PAGE === 'basic') initBasicPage();
             else if (ACTIVE_PAGE === 'wallet') initWalletPage();
             else if (ACTIVE_PAGE === 'prompts') initPromptPage();
@@ -9053,6 +9203,12 @@
             else if (ACTIVE_PAGE === 'advanced-contextmenu') initContextMenuPage();
             else if (ACTIVE_PAGE === 'advanced-knowledge') initKnowledgePage();
             else if (ACTIVE_PAGE === 'advanced-mindmap') initMindmapPage();
+
+            window.addEventListener('beforeunload', (event) => {
+                if (!hasActiveGenerationTask()) return;
+                event.preventDefault();
+                event.returnValue = '当前大模型仍在生成中，请等待完成后再离开页面。';
+            });
         });
     </script>
 </body>

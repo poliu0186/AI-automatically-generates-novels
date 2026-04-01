@@ -1,4 +1,7 @@
 import re
+import time
+import hashlib
+import threading
 from io import BytesIO
 from openai import OpenAI
 from flask import Blueprint, request, Response, current_app, send_file, has_app_context, stream_with_context
@@ -34,9 +37,128 @@ except ImportError:
 
 api_bp = Blueprint('api', __name__)
 
+_ROUTE_STATE_LOCK = threading.Lock()
+_ROUTE_STATE = {}
+
 
 def get_client(endpoint, api_key):
     return OpenAI(base_url=endpoint, api_key=api_key)
+
+
+def _split_pool_values(raw):
+    if not raw:
+        return []
+    parts = [item.strip() for item in str(raw).replace('\n', ',').split(',')]
+    return [item for item in parts if item]
+
+
+def _build_route_candidates(endpoint_key, api_key_name):
+    suffix = endpoint_key.rsplit('_', 1)[-1]
+    endpoint_pool_name = f'API_ENDPOINT_POOL_{suffix}'
+    api_key_pool_name = f'API_KEY_POOL_{suffix}'
+
+    endpoint_values = _split_pool_values(current_app.config.get(endpoint_pool_name, ''))
+    api_key_values = _split_pool_values(current_app.config.get(api_key_pool_name, ''))
+
+    base_endpoint = (current_app.config.get(endpoint_key) or '').strip()
+    base_key = (current_app.config.get(api_key_name) or '').strip()
+
+    if base_endpoint and base_endpoint not in endpoint_values:
+        endpoint_values.insert(0, base_endpoint)
+    if base_key and base_key not in api_key_values:
+        api_key_values.insert(0, base_key)
+
+    if not endpoint_values or not api_key_values:
+        return []
+
+    candidates = []
+    for endpoint in endpoint_values:
+        for api_key in api_key_values:
+            route_hash = hashlib.sha1(f'{endpoint}|{api_key}'.encode('utf-8')).hexdigest()[:12]
+            candidates.append(
+                {
+                    'id': route_hash,
+                    'endpoint': endpoint,
+                    'api_key': api_key,
+                    'endpoint_key': endpoint_key,
+                    'api_key_name': api_key_name,
+                }
+            )
+    return candidates
+
+
+def _get_route_state(state_key):
+    state = _ROUTE_STATE.get(state_key)
+    if not state:
+        state = {'rr_index': 0, 'fail_counts': {}, 'cooldown_until': {}}
+        _ROUTE_STATE[state_key] = state
+    return state
+
+
+def _select_route(endpoint_key, api_key_name):
+    candidates = _build_route_candidates(endpoint_key, api_key_name)
+    if not candidates:
+        raise RuntimeError(f'No route candidates found for {endpoint_key}/{api_key_name}')
+
+    state_key = f'{endpoint_key}:{api_key_name}'
+    now_ts = time.time()
+
+    with _ROUTE_STATE_LOCK:
+        state = _get_route_state(state_key)
+        available = [
+            item
+            for item in candidates
+            if float(state['cooldown_until'].get(item['id'], 0) or 0) <= now_ts
+        ]
+        if not available:
+            available = candidates
+
+        idx = state['rr_index'] % len(available)
+        selected = available[idx]
+        state['rr_index'] = (state['rr_index'] + 1) % max(len(available), 1)
+
+    return selected, candidates
+
+
+def _mark_route_result(endpoint_key, api_key_name, route_id, ok):
+    state_key = f'{endpoint_key}:{api_key_name}'
+    fail_threshold = max(int(current_app.config.get('API_ROUTE_FAILURE_THRESHOLD', 2) or 2), 1)
+    cooldown_seconds = max(int(current_app.config.get('API_ROUTE_COOLDOWN_SECONDS', 30) or 30), 1)
+
+    with _ROUTE_STATE_LOCK:
+        state = _get_route_state(state_key)
+        if ok:
+            state['fail_counts'][route_id] = 0
+            state['cooldown_until'][route_id] = 0
+            return
+
+        fail_count = int(state['fail_counts'].get(route_id, 0) or 0) + 1
+        state['fail_counts'][route_id] = fail_count
+        if fail_count >= fail_threshold:
+            state['cooldown_until'][route_id] = time.time() + cooldown_seconds
+            state['fail_counts'][route_id] = 0
+
+
+def _create_completion_with_fallback(*, candidates, selected_route, model_name, prompt, logger):
+    ordered = [selected_route] + [item for item in candidates if item['id'] != selected_route['id']]
+    last_error = None
+
+    for route in ordered:
+        client = get_client(route['endpoint'], route['api_key'])
+        try:
+            completion = client.chat.completions.create(
+                model=model_name,
+                messages=[{'role': 'user', 'content': prompt}],
+                stream=True
+            )
+            _mark_route_result(route['endpoint_key'], route['api_key_name'], route['id'], True)
+            return completion, route
+        except Exception as error:
+            _mark_route_result(route['endpoint_key'], route['api_key_name'], route['id'], False)
+            logger.warning('LLM route failed, try next route: endpoint=%s route=%s error=%s', route['endpoint'], route['id'], error)
+            last_error = error
+
+    raise RuntimeError(f'All routes failed: {last_error}')
 
 
 def _safe_export_title(raw_title):
@@ -70,12 +192,14 @@ def _stream_with_billing(*, endpoint_name, endpoint_key, api_key_name, model_nam
     estimated_output_tokens = int(current_app.config.get('DEFAULT_ESTIMATED_OUTPUT_TOKENS', '1200') or 1200)
     estimated_total_tokens = estimated_input_tokens + estimated_output_tokens
 
+    selected_route, route_candidates = _select_route(endpoint_key, api_key_name)
+
     try:
         usage_record = reserve_usage_charge(
             current_user.id,
             request_id=request_id,
             endpoint=endpoint_name,
-            provider=current_app.config.get(endpoint_key, ''),
+            provider=selected_route['endpoint'],
             model=model_name,
             estimated_tokens=estimated_total_tokens,
             remark=f'{endpoint_name} 预占：输入约 {estimated_input_tokens} + 输出约 {estimated_output_tokens} tokens'
@@ -95,13 +219,13 @@ def _stream_with_billing(*, endpoint_name, endpoint_key, api_key_name, model_nam
         current_app.logger.exception('预占代币失败: endpoint=%s', endpoint_name)
         return Response(f'预占代币失败: {error}', status=500, mimetype='text/plain')
 
-    client = get_client(current_app.config[endpoint_key], current_app.config[api_key_name])
     logger = current_app.logger
 
     def generate_stream():
         completion_text_parts = []
         provider_usage = None
         hit_budget_limit = False
+        route_used = selected_route
 
         def over_budget(next_chunk_text='', next_chunk_usage=None):
             if max_billable_tokens <= 0:
@@ -115,12 +239,14 @@ def _stream_with_billing(*, endpoint_name, endpoint_key, api_key_name, model_nam
             return (estimated_prompt + estimated_completion) > max_billable_tokens
 
         try:
-            completion = client.chat.completions.create(
-                model=model_name,
-                messages=[{'role': 'user', 'content': prompt}],
-                stream=True
+            completion, route_used = _create_completion_with_fallback(
+                candidates=route_candidates,
+                selected_route=selected_route,
+                model_name=model_name,
+                prompt=prompt,
+                logger=logger,
             )
-            logger.debug('Stream created successfully for %s', endpoint_name)
+            logger.debug('Stream created successfully for %s with route=%s', endpoint_name, route_used['id'])
             for chunk in completion:
                 chunk_usage = _extract_chunk_usage(chunk)
                 if chunk_usage:
@@ -164,7 +290,7 @@ def _stream_with_billing(*, endpoint_name, endpoint_key, api_key_name, model_nam
             log_user_action(
                 current_user.id,
                 'ai_generate_completed',
-                f'endpoint={endpoint_name}, model={model_name}, total_tokens={total_tokens}, request_id={request_id}'
+                f'endpoint={endpoint_name}, model={model_name}, route={route_used["id"]}, total_tokens={total_tokens}, request_id={request_id}'
             )
             db.session.commit()
         except GeneratorExit:

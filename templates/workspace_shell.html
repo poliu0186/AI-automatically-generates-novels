@@ -29,6 +29,7 @@
                 <button class="theme-option" id="theme-dark" type="button" data-theme="dark">暗色</button>
             </div>
             <button class="link-btn" id="topbar-user-center" type="button">{{ user.username }}</button>
+            <a class="link-btn" href="{{ url_for('main.user_messages') }}">消息</a>
             {% if user.is_admin %}
             <a class="link-btn" href="{{ url_for('admin.admin_dashboard') }}">管理员</a>
             {% endif %}
@@ -70,6 +71,16 @@
         </section>
     </main>
 
+    <div class="shell-dialog-overlay" id="shell-dialog-overlay" style="display:none;">
+        <div class="shell-dialog" role="alertdialog" aria-modal="true" aria-labelledby="shell-dialog-title" aria-describedby="shell-dialog-message">
+            <h3 class="shell-dialog-title" id="shell-dialog-title">请稍候</h3>
+            <p class="shell-dialog-message" id="shell-dialog-message">当前大模型仍在生成中，请等待本次生成完成后再切换页面。</p>
+            <div class="shell-dialog-actions">
+                <button class="shell-dialog-button primary" id="shell-dialog-ok" type="button">我知道了</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         (function () {
             const sidebar = document.getElementById('sidebar');
@@ -83,6 +94,9 @@
             const advancedGroup = document.getElementById('advanced-menu-group');
             const userCenterPage = '{{ user_center_page }}';
             const THEME_KEY = 'workspaceTheme';
+            const GENERATION_GUARD_KEY = 'novelGenerationGuard_user_{{ user.id }}';
+            const shellDialogOverlay = document.getElementById('shell-dialog-overlay');
+            const shellDialogOk = document.getElementById('shell-dialog-ok');
 
             function getCurrentTheme() {
                 const savedTheme = localStorage.getItem(THEME_KEY);
@@ -132,7 +146,42 @@
                 }
             }
 
+            function getWorkspaceState() {
+                try {
+                    const raw = sessionStorage.getItem(GENERATION_GUARD_KEY);
+                    return raw ? (JSON.parse(raw) || {}) : {};
+                } catch (error) {
+                    return {};
+                }
+            }
+
+            function hasActiveModelGeneration() {
+                const state = getWorkspaceState();
+                return Boolean(
+                    Number(state.model_generation_active_count || 0) > 0 ||
+                    state.outline_generation_active ||
+                    state.split_generation_active
+                );
+            }
+
+            function showGenerationBlockedDialog() {
+                if (!shellDialogOverlay) return;
+                shellDialogOverlay.style.display = 'flex';
+                if (shellDialogOk) {
+                    window.setTimeout(() => shellDialogOk.focus(), 0);
+                }
+            }
+
+            function confirmPageSwitchWhileGenerating() {
+                if (!hasActiveModelGeneration()) return true;
+                showGenerationBlockedDialog();
+                return false;
+            }
+
             function openPage(page) {
+                if (!confirmPageSwitchWhileGenerating()) {
+                    return;
+                }
                 frame.src = '/workspace/page/' + page;
                 setActive(page);
             }
@@ -187,6 +236,17 @@
                     applyTheme(getCurrentTheme(), false);
                 }
             });
+
+            if (shellDialogOk && shellDialogOverlay) {
+                shellDialogOk.addEventListener('click', () => {
+                    shellDialogOverlay.style.display = 'none';
+                });
+                shellDialogOverlay.addEventListener('click', (event) => {
+                    if (event.target === shellDialogOverlay) {
+                        shellDialogOverlay.style.display = 'none';
+                    }
+                });
+            }
         })();
     </script>
 </body>

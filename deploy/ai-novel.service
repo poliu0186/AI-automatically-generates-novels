@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
+User=ai-novel
+Group=ai-novel
 WorkingDirectory=/opt/ai-novel
 EnvironmentFile=/opt/ai-novel/.env
 ExecStart=/opt/ai-novel/.venv/bin/gunicorn -c /opt/ai-novel/gunicorn.conf.py wsgi:app

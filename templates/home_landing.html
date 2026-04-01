@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小说创作 AI 助手 | 专业化长篇创作平台</title>
+    <meta name="description" content="专业化小说创作 AI 助手，覆盖设定、提纲、章节、润色、导出全流程，支持多模型与提示词工程。">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0e17;
+            --ink: #ebf1ff;
+            --muted: #96a5c4;
+            --line: #24304a;
+            --card: #131d31;
+            --accent: #ff7a45;
+            --accent-2: #3ec5b8;
+            --accent-3: #ffcc5c;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            background:
+                radial-gradient(1000px 500px at 86% -6%, rgba(62,197,184,0.16), rgba(62,197,184,0) 70%),
+                radial-gradient(840px 360px at -10% 20%, rgba(255,122,69,0.24), rgba(255,122,69,0) 68%),
+                radial-gradient(900px 520px at 55% 118%, rgba(96,90,255,0.18), rgba(96,90,255,0) 70%),
+                linear-gradient(180deg, var(--bg) 0%, #070b12 100%);
+            font-family: "Manrope", "PingFang SC", "Microsoft YaHei", sans-serif;
+            min-height: 100vh;
+        }
+
+        .grain {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.08;
+            background-image: radial-gradient(#fff 0.28px, transparent 0.28px);
+            background-size: 4px 4px;
+        }
+
+        .container {
+            width: min(1140px, 92vw);
+            margin: 0 auto;
+        }
+
+        header {
+            padding: 24px 0;
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(10px);
+            background: rgba(11, 16, 28, 0.75);
+            border-bottom: 1px solid rgba(36, 48, 74, 0.8);
+            z-index: 10;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+
+        .brand-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent-3));
+            box-shadow: 0 0 0 6px rgba(255,122,69,0.22);
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            padding: 11px 18px;
+            font-weight: 700;
+            font-size: 14px;
+            transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+        }
+
+        .btn:hover { transform: translateY(-1px); }
+
+        .btn-ghost {
+            color: var(--ink);
+            border-color: var(--line);
+            background: rgba(24, 36, 60, 0.65);
+        }
+
+        .btn-primary {
+            color: #fff;
+            background: linear-gradient(135deg, var(--accent), #ff9a4d);
+            box-shadow: 0 10px 26px rgba(255,122,69,0.36);
+        }
+
+        .hero {
+            padding: 72px 0 40px;
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 28px;
+            align-items: stretch;
+        }
+
+        .hero h1 {
+            margin: 0 0 14px;
+            font-family: "Noto Serif SC", serif;
+            font-size: clamp(32px, 4.8vw, 60px);
+            line-height: 1.12;
+            letter-spacing: 0.01em;
+        }
+
+        .hero p {
+            margin: 0;
+            color: var(--muted);
+            font-size: clamp(15px, 1.4vw, 18px);
+            line-height: 1.9;
+            max-width: 660px;
+        }
+
+        .hero-cta {
+            margin-top: 26px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .metric-wrap {
+            display: grid;
+            gap: 14px;
+        }
+
+        .metric {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 18px;
+            opacity: 0;
+            transform: translateY(16px);
+            animation: rise .6s ease forwards;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+        }
+
+        .metric:nth-child(2) { animation-delay: .12s; }
+        .metric:nth-child(3) { animation-delay: .24s; }
+
+        .metric strong {
+            display: block;
+            font-size: 26px;
+            margin-bottom: 4px;
+            color: var(--accent-2);
+        }
+
+        .section {
+            padding: 18px 0 8px;
+        }
+
+        .section-title {
+            font-family: "Noto Serif SC", serif;
+            font-size: clamp(26px, 3.2vw, 40px);
+            margin: 0 0 14px;
+        }
+
+        .section-subtitle {
+            color: var(--muted);
+            margin: 0 0 24px;
+            line-height: 1.8;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 18px;
+            min-height: 166px;
+        }
+
+        .card h3 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+
+        .card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.75;
+            font-size: 14px;
+        }
+
+        .flow {
+            margin-top: 18px;
+            background: linear-gradient(135deg, rgba(62,197,184,0.10), rgba(255,204,92,0.10));
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 18px;
+        }
+
+        .flow ol {
+            margin: 0;
+            padding-left: 20px;
+            display: grid;
+            gap: 10px;
+            color: #b5cffb;
+            line-height: 1.75;
+        }
+
+        .bottom-cta {
+            margin: 34px 0 56px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 24px;
+            background: linear-gradient(135deg, #1a2a48 0%, #152138 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+
+        .bottom-cta p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        @keyframes rise {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 940px) {
+            .hero { grid-template-columns: 1fr; }
+            .cards { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+    <header>
+        <div class="container topbar">
+            <div class="brand">
+                <span class="brand-dot"></span>
+                <span>小说创作 AI 助手</span>
+            </div>
+            <div class="nav-actions">
+                <a class="btn btn-ghost" href="{{ url_for('auth.login') }}">登录</a>
+                <a class="btn btn-primary" href="{{ url_for('auth.register') }}">免费开始</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="hero">
+            <div>
+                <h1>给专业作者的 AI 创作操作台</h1>
+                <p>
+                    不是聊天框，而是一套完整的小说生产链路。把作品设定、提示词策略、章节推进、细节润色和导出发布串成一个稳定流程，
+                    让你在节奏、质量和产能上同时提速。
+                </p>
+                <div class="hero-cta">
+                    <a class="btn btn-primary" href="{{ url_for('auth.register') }}">创建账号</a>
+                    <a class="btn btn-ghost" href="{{ url_for('auth.login') }}">已有账号，立即登录</a>
+                </div>
+            </div>
+            <div class="metric-wrap">
+                <div class="metric"><strong>5 步闭环</strong>从设定到导出，一条链路完成长篇创作</div>
+                <div class="metric"><strong>双模型策略</strong>主模型保质量，副模型控成本</div>
+                <div class="metric"><strong>提示词工程化</strong>变量化模板 + 右键优化菜单</div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">面向实战写作的核心能力</h2>
+            <p class="section-subtitle">围绕网文生产真实场景设计，不靠花哨概念，强调稳定输出与可复用流程。</p>
+            <div class="cards">
+                <article class="card">
+                    <h3>结构化创作链路</h3>
+                    <p>背景、人设、关系、剧情、风格统一管理，减少上下文割裂，让后续大纲和正文连续可控。</p>
+                </article>
+                <article class="card">
+                    <h3>章节级精细推进</h3>
+                    <p>先出章节细纲再生成正文，冲突、伏笔、节奏可逐段优化，避免一次性长生成失控。</p>
+                </article>
+                <article class="card">
+                    <h3>专业编辑增强</h3>
+                    <p>支持右键润色、扩写、去 AI 味、评分诊断，搭配知识库记忆，适合连载与工作室协作。</p>
+                </article>
+            </div>
+            <div class="flow">
+                <ol>
+                    <li>设定作品基础信息，构建统一世界观与角色关系。</li>
+                    <li>配置提示词策略，定义风格、节奏和输出约束。</li>
+                    <li>生成大纲并校正冲突与转折，形成主线骨架。</li>
+                    <li>按章节推进内容，逐章打磨文笔与情绪张力。</li>
+                    <li>整书导出与复盘，沉淀可复用的提示词资产。</li>
+                </ol>
+            </div>
+        </section>
+
+        <section class="bottom-cta">
+            <div>
+                <h3 style="margin:0 0 8px;">准备把创作流程升级成专业化生产线？</h3>
+                <p>3 分钟完成注册与基础配置，立即开始第一本书的结构化写作。</p>
+            </div>
+            <a class="btn btn-primary" href="{{ url_for('auth.register') }}">立即开启创作</a>
+        </section>
+    </main>
+</body>
+</html>

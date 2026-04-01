@@ -1,24 +1,35 @@
-import os
 import logging
 import time
 from datetime import datetime
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
-from flask import Flask, redirect, request, session, url_for
-from flask_login import current_user
+from flask import Flask, flash, redirect, request, session, url_for
+from flask_login import current_user, logout_user
 from openai import OpenAI
 from dotenv import load_dotenv
 from sqlalchemy import inspect, text
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.extensions import db, login_manager
-from app.auth import auth_bp, create_user, get_user_by_username
+from app.auth import auth_bp
 from app.admin import admin_bp
 from app.main import main_bp
 from app.ai import api_bp
 from app.payment import payment_bp
 from app.models import User
 from app.secret_resolver import resolve_env_bool, resolve_env_int, resolve_env_value
+
+
+class LoggerNameAliasFilter(logging.Filter):
+    def __init__(self, aliases):
+        super().__init__()
+        self.aliases = aliases
+
+    def filter(self, record):
+        alias = self.aliases.get(getattr(record, 'name', ''))
+        if alias:
+            record.name = alias
+        return True
 
 
 def setup_logging(app, basedir):
@@ -37,6 +48,7 @@ def setup_logging(app, basedir):
         '%(asctime)s | %(levelname)s | %(name)s | %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
     )
+    logger_alias_filter = LoggerNameAliasFilter({'werkzeug': 'poliu', 'werkzeug.serving': 'poliu'})
 
     handlers = []
 
@@ -48,6 +60,7 @@ def setup_logging(app, basedir):
     )
     file_handler.setLevel(log_level)
     file_handler.setFormatter(formatter)
+    file_handler.addFilter(logger_alias_filter)
     file_handler.set_name('ai_novel_file')
     handlers.append(file_handler)
 
@@ -55,6 +68,7 @@ def setup_logging(app, basedir):
         stream_handler = logging.StreamHandler()
         stream_handler.setLevel(log_level)
         stream_handler.setFormatter(formatter)
+        stream_handler.addFilter(logger_alias_filter)
         stream_handler.set_name('ai_novel_stream')
         handlers.append(stream_handler)
 
@@ -110,8 +124,14 @@ def create_app():
     )
     app.config['API_ENDPOINT_1'] = resolve_env_value('API_ENDPOINT_1', 'https://open.bigmodel.cn/api/paas/v4/')
     app.config['API_KEY_1'] = resolve_env_value('API_KEY_1', '')
+    app.config['API_ENDPOINT_POOL_1'] = resolve_env_value('API_ENDPOINT_POOL_1', '')
+    app.config['API_KEY_POOL_1'] = resolve_env_value('API_KEY_POOL_1', '')
     app.config['API_ENDPOINT_2'] = resolve_env_value('API_ENDPOINT_2', 'https://open.bigmodel.cn/api/paas/v4/')
     app.config['API_KEY_2'] = resolve_env_value('API_KEY_2', '')
+    app.config['API_ENDPOINT_POOL_2'] = resolve_env_value('API_ENDPOINT_POOL_2', '')
+    app.config['API_KEY_POOL_2'] = resolve_env_value('API_KEY_POOL_2', '')
+    app.config['API_ROUTE_FAILURE_THRESHOLD'] = resolve_env_int('API_ROUTE_FAILURE_THRESHOLD', 2)
+    app.config['API_ROUTE_COOLDOWN_SECONDS'] = resolve_env_int('API_ROUTE_COOLDOWN_SECONDS', 30)
     app.config['COINS_PER_1000_TOKENS'] = resolve_env_value('COINS_PER_1000_TOKENS', '1')
     app.config['COINS_PER_YUAN'] = resolve_env_value('COINS_PER_YUAN', '10')
     app.config['REVIEW_AUDIT_COINS'] = resolve_env_value('REVIEW_AUDIT_COINS', '2')
@@ -124,10 +144,11 @@ def create_app():
     app.config['ALIPAY_PUBLIC_KEY'] = resolve_env_value('ALIPAY_PUBLIC_KEY', '')
     app.config['ALIPAY_NOTIFY_URL'] = resolve_env_value('ALIPAY_NOTIFY_URL', '')
     app.config['ALIPAY_RETURN_URL'] = resolve_env_value('ALIPAY_RETURN_URL', '')
-    app.config['LOGIN_MAX_ATTEMPTS'] = resolve_env_value('LOGIN_MAX_ATTEMPTS', '5')
+    app.config['LOGIN_MAX_ATTEMPTS'] = resolve_env_value('LOGIN_MAX_ATTEMPTS', '10')
     app.config['LOGIN_WINDOW_SECONDS'] = resolve_env_value('LOGIN_WINDOW_SECONDS', '300')
     app.config['LOGIN_LOCKOUT_SECONDS'] = resolve_env_value('LOGIN_LOCKOUT_SECONDS', '900')
     app.config['LOGIN_CAPTCHA_TTL_SECONDS'] = resolve_env_value('LOGIN_CAPTCHA_TTL_SECONDS', '180')
+    app.config['SESSION_INACTIVITY_TIMEOUT_SECONDS'] = resolve_env_int('SESSION_INACTIVITY_TIMEOUT_SECONDS', 600)
     app.config['RESET_PASSWORD_EXPIRE_SECONDS'] = resolve_env_value('RESET_PASSWORD_EXPIRE_SECONDS', '1800')
     app.config['RESET_PASSWORD_RESEND_COOLDOWN_SECONDS'] = resolve_env_value('RESET_PASSWORD_RESEND_COOLDOWN_SECONDS', '60')
     app.config['MAIL_HOST'] = resolve_env_value('MAIL_HOST', '')
@@ -169,6 +190,31 @@ def create_app():
         if is_admin_route:
             return redirect(url_for('auth.admin_login', next=next_url))
         return redirect(url_for('auth.login', next=next_url))
+
+    @app.before_request
+    def _enforce_session_inactivity_timeout():
+        if not current_user.is_authenticated:
+            return
+
+        endpoint = request.endpoint or ''
+        if endpoint.startswith('static'):
+            return
+
+        now_ts = int(time.time())
+        timeout_seconds = max(int(app.config.get('SESSION_INACTIVITY_TIMEOUT_SECONDS', 600) or 600), 60)
+        last_activity_ts = int(session.get('_last_activity_ts') or 0)
+
+        if last_activity_ts and (now_ts - last_activity_ts >= timeout_seconds):
+            user_id = getattr(current_user, 'id', None)
+            logout_user()
+            session.pop('_last_activity_ts', None)
+            session.pop('_online_last_touch_ts', None)
+            session.pop('_online_last_seen_ts', None)
+            flash('由于长时间未操作，系统已自动退出登录。', 'danger')
+            app.logger.info('Auto logout due to inactivity: user_id=%s timeout_seconds=%s', user_id, timeout_seconds)
+            return redirect(url_for('auth.login'))
+
+        session['_last_activity_ts'] = now_ts
 
     @app.before_request
     def _enforce_https():
@@ -284,9 +330,5 @@ def create_app():
     with app.app_context():
         db.create_all()
         ensure_auth_schema_updates()
-        admin_username = os.environ.get('ADMIN_USERNAME')
-        admin_password = os.environ.get('ADMIN_PASSWORD')
-        if admin_username and admin_password and not get_user_by_username(admin_username):
-            create_user(admin_username, admin_password, is_admin=True)
 
     return app

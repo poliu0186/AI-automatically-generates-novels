@@ -31,6 +31,26 @@
 
 在线体验 http://ssss.baby:20000
 
+## 阿里云部署（推荐）
+
+仓库已内置阿里云 ECS 部署脚本与说明：
+
+- 一键首部署脚本：`deploy/aliyun_bootstrap.sh`
+- 日常更新脚本：`deploy/deploy_update.sh`
+- 完整部署手册：`deploy/DEPLOY_ALIYUN.md`
+
+首部署示例：
+
+```bash
+sudo -i
+cd /tmp
+git clone https://github.com/poliu0186/AI-automatically-generates-novels.git
+cd AI-automatically-generates-novels
+bash deploy/aliyun_bootstrap.sh https://github.com/poliu0186/AI-automatically-generates-novels.git your-domain.com
+```
+
+部署后请重点检查 `/opt/ai-novel/.env` 中的数据库、模型密钥、支付参数和邮件配置。
+
 ## 日志配置（按级别 + 滚动）
 
 项目已支持按级别输出日志，并支持日志文件滚动（按文件大小）。默认会同时输出到控制台与日志文件。
@@ -56,6 +76,36 @@ LOG_BACKUP_COUNT=10
 ```
 
 当日志文件达到 `LOG_MAX_BYTES` 后会自动滚动，旧日志会以 `app.log.1`、`app.log.2` 的形式保留。
+
+## 大模型多 Key 自动路由
+
+已支持在 `/gen` 与 `/gen2` 下启用多 Key 自动路由（轮询 + 失败自动切换 + 冷却）。
+
+可在 `.env` 配置：
+
+- `API_KEY_POOL_1`：`/gen` 的 key 池，逗号分隔
+- `API_KEY_POOL_2`：`/gen2` 的 key 池，逗号分隔
+- `API_ENDPOINT_POOL_1`：`/gen` 的 endpoint 池（可选）
+- `API_ENDPOINT_POOL_2`：`/gen2` 的 endpoint 池（可选）
+- `API_ROUTE_FAILURE_THRESHOLD`：某条路由连续失败多少次后进入冷却，默认 `2`
+- `API_ROUTE_COOLDOWN_SECONDS`：冷却秒数，默认 `30`
+
+示例：
+
+```env
+API_ENDPOINT_1=https://open.bigmodel.cn/api/paas/v4/
+API_KEY_1=ENC:...
+API_KEY_POOL_1=ENC:keyA,ENC:keyB,ENC:keyC
+
+API_ENDPOINT_2=https://open.bigmodel.cn/api/paas/v4/
+API_KEY_2=ENC:...
+API_KEY_POOL_2=ENC:keyD,ENC:keyE
+
+API_ROUTE_FAILURE_THRESHOLD=2
+API_ROUTE_COOLDOWN_SECONDS=30
+```
+
+说明：如果不配置 `*_POOL_*`，系统会回退到原有单 key 行为。
 
 
 

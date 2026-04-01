@@ -1,14 +1,20 @@
-from flask import Blueprint, render_template, redirect, url_for, abort
+from pathlib import Path
+
+from flask import Blueprint, render_template, redirect, url_for, abort, current_app, send_from_directory, request, flash
 from flask_login import login_required, current_user
 
 from app.workspace_nav import build_workspace_nav_view_data
+from app.extensions import db
+from app.models import UserMessage
 
 main_bp = Blueprint('main', __name__)
 
 
 @main_bp.route('/')
-@login_required
 def home():
+    if not current_user.is_authenticated:
+        return render_template('home_landing.html')
+
     if getattr(current_user, 'is_admin', False):
         return redirect(url_for('admin.admin_dashboard'))
     nav_data = build_workspace_nav_view_data()
@@ -58,6 +64,43 @@ def workspace_page(page):
 @login_required
 def workspace_page_legacy(page):
     return redirect(url_for('main.workspace_page', page=page))
+
+
+@main_bp.route('/messages', methods=['GET', 'POST'])
+@login_required
+def user_messages():
+    if getattr(current_user, 'is_admin', False):
+        return redirect(url_for('admin.admin_dashboard', tab='messages'))
+
+    if request.method == 'POST':
+        subject = (request.form.get('subject') or '').strip()
+        content = (request.form.get('content') or '').strip()
+
+        if not subject:
+            flash('请填写问题主题。', 'danger')
+        elif not content:
+            flash('请填写问题内容。', 'danger')
+        else:
+            db.session.add(
+                UserMessage(
+                    user_id=current_user.id,
+                    subject=subject[:120],
+                    content=content[:4000],
+                    status='open',
+                )
+            )
+            db.session.commit()
+            flash('消息已发送给管理员，我们会尽快处理并回复。', 'success')
+            return redirect(url_for('main.user_messages'))
+
+    messages = UserMessage.query.filter_by(user_id=current_user.id).order_by(UserMessage.created_at.desc()).limit(100).all()
+    return render_template('messages.html', user=current_user, messages=messages)
+
+
+@main_bp.route('/media/jpg/<path:filename>')
+def media_jpg(filename):
+    jpg_dir = Path(current_app.root_path).parent / 'jpg'
+    return send_from_directory(str(jpg_dir), filename)
 
 
 @main_bp.route('/test')

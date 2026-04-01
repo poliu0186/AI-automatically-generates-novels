@@ -303,6 +303,63 @@ body {
     background: var(--frame-bg);
 }
 
+.shell-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(7, 14, 26, 0.56);
+    backdrop-filter: blur(6px);
+}
+
+.shell-dialog {
+    width: min(460px, 100%);
+    padding: 22px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel-bg);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.shell-dialog-title {
+    margin: 0 0 10px;
+    font-size: 18px;
+    color: var(--ink);
+}
+
+.shell-dialog-message {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--muted);
+}
+
+.shell-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+.shell-dialog-button {
+    min-width: 104px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    background: var(--surface-soft);
+    color: var(--ink);
+}
+
+.shell-dialog-button.primary {
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--brand), var(--brand-2));
+    color: #fff;
+}
+
 @media (max-width: 760px) {
     .topbar {
         height: auto;
