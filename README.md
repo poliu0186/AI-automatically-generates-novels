@@ -31,6 +31,32 @@
 
 在线体验 http://ssss.baby:20000
 
+## 日志配置（按级别 + 滚动）
+
+项目已支持按级别输出日志，并支持日志文件滚动（按文件大小）。默认会同时输出到控制台与日志文件。
+
+可在 `.env` 中配置：
+
+- `LOG_LEVEL`：日志级别，支持 `DEBUG/INFO/WARNING/ERROR/CRITICAL`，默认 `INFO`
+- `LOG_DIR`：日志目录，默认 `logs`
+- `LOG_FILE`：日志文件名，默认 `app.log`
+- `LOG_TO_STDOUT`：是否输出到控制台，`1/0`，默认 `1`
+- `LOG_MAX_BYTES`：单个日志文件最大字节数，默认 `20971520`（20MB）
+- `LOG_BACKUP_COUNT`：滚动保留文件数量，默认 `10`
+
+示例：
+
+```env
+LOG_LEVEL=INFO
+LOG_DIR=logs
+LOG_FILE=app.log
+LOG_TO_STDOUT=1
+LOG_MAX_BYTES=20971520
+LOG_BACKUP_COUNT=10
+```
+
+当日志文件达到 `LOG_MAX_BYTES` 后会自动滚动，旧日志会以 `app.log.1`、`app.log.2` 的形式保留。
+
 
 
 

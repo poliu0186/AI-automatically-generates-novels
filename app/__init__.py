@@ -3,6 +3,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
+from logging.handlers import RotatingFileHandler
 from flask import Flask, redirect, request, session, url_for
 from flask_login import current_user
 from openai import OpenAI
@@ -18,6 +19,68 @@ from app.ai import api_bp
 from app.payment import payment_bp
 from app.models import User
 from app.secret_resolver import resolve_env_bool, resolve_env_int, resolve_env_value
+
+
+def setup_logging(app, basedir):
+    log_level_name = (app.config.get('LOG_LEVEL') or 'INFO').strip().upper()
+    log_level = getattr(logging, log_level_name, logging.INFO)
+    log_dir = Path(app.config.get('LOG_DIR') or (basedir / 'logs'))
+    log_file = app.config.get('LOG_FILE') or 'app.log'
+    log_max_bytes = max(int(app.config.get('LOG_MAX_BYTES') or 20 * 1024 * 1024), 1024)
+    log_backup_count = max(int(app.config.get('LOG_BACKUP_COUNT') or 10), 1)
+    log_to_stdout = bool(app.config.get('LOG_TO_STDOUT', True))
+
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / log_file
+
+    formatter = logging.Formatter(
+        '%(asctime)s | %(levelname)s | %(name)s | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
+    handlers = []
+
+    file_handler = RotatingFileHandler(
+        log_path,
+        maxBytes=log_max_bytes,
+        backupCount=log_backup_count,
+        encoding='utf-8',
+    )
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(formatter)
+    file_handler.set_name('ai_novel_file')
+    handlers.append(file_handler)
+
+    if log_to_stdout:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(log_level)
+        stream_handler.setFormatter(formatter)
+        stream_handler.set_name('ai_novel_stream')
+        handlers.append(stream_handler)
+
+    root_logger = logging.getLogger()
+    for existing in list(root_logger.handlers):
+        name = getattr(existing, 'name', '') or ''
+        if name.startswith('ai_novel_'):
+            root_logger.removeHandler(existing)
+            existing.close()
+
+    root_logger.setLevel(log_level)
+    for handler in handlers:
+        root_logger.addHandler(handler)
+
+    app.logger.handlers = []
+    app.logger.propagate = True
+    app.logger.setLevel(log_level)
+
+    app.logger.info(
+        '日志系统已初始化: level=%s, file=%s, max_bytes=%s, backup_count=%s, stdout=%s',
+        logging.getLevelName(log_level),
+        str(log_path),
+        log_max_bytes,
+        log_backup_count,
+        log_to_stdout,
+    )
 
 
 def create_app():
@@ -81,8 +144,14 @@ def create_app():
     app.config['ADMIN_OTP_TTL_SECONDS'] = resolve_env_int('ADMIN_OTP_TTL_SECONDS', 300)
     app.config['ADMIN_OTP_RESEND_COOLDOWN_SECONDS'] = resolve_env_int('ADMIN_OTP_RESEND_COOLDOWN_SECONDS', 60)
     app.config['ADMIN_OTP_LENGTH'] = resolve_env_int('ADMIN_OTP_LENGTH', 6)
+    app.config['LOG_LEVEL'] = resolve_env_value('LOG_LEVEL', 'INFO')
+    app.config['LOG_DIR'] = resolve_env_value('LOG_DIR', str(basedir / 'logs'))
+    app.config['LOG_FILE'] = resolve_env_value('LOG_FILE', 'app.log')
+    app.config['LOG_TO_STDOUT'] = resolve_env_bool('LOG_TO_STDOUT', True)
+    app.config['LOG_MAX_BYTES'] = resolve_env_int('LOG_MAX_BYTES', 20971520)
+    app.config['LOG_BACKUP_COUNT'] = resolve_env_int('LOG_BACKUP_COUNT', 10)
 
-    logging.basicConfig(level=logging.DEBUG)
+    setup_logging(app, basedir)
 
     if app.config['TRUST_PROXY']:
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
