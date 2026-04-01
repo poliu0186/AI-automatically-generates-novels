@@ -40,12 +40,10 @@
         <aside class="sidebar" id="sidebar">
             <button class="collapse-btn" id="collapse-btn" type="button" title="折叠/展开导航">☰</button>
             <nav class="menu" id="menu">
-                <button class="menu-item active" data-page="basic" type="button"><span class="icon">🧱</span><span class="label">作品设定</span></button>
-                <button class="menu-item" data-page="prompts" type="button"><span class="icon">🧠</span><span class="label">创作策略</span></button>
-                <button class="menu-item" data-page="outline" type="button"><span class="icon">🗺️</span><span class="label">生成大纲</span></button>
-                <button class="menu-item" data-page="chapters" type="button"><span class="icon">📚</span><span class="label">写作章节</span></button>
-                <button class="menu-item" data-page="export" type="button"><span class="icon">📦</span><span class="label">导出成稿</span></button>
-                <button class="menu-item" data-page="review" type="button"><span class="icon">✅</span><span class="label">自动审核</span></button>
+                {% for item in nav_top_items %}
+                <button class="menu-item{% if item.key == active_page %} active{% endif %}" data-page="{{ item.key }}" type="button"><span class="icon">{{ item.icon }}</span><span class="label">{{ item.label }}</span></button>
+                {% endfor %}
+                {% if nav_advanced_items %}
                 <div class="menu-group open" id="advanced-menu-group">
                     <button class="menu-item menu-group-title" id="advanced-menu-toggle" type="button" aria-expanded="true">
                         <span class="icon">⚙️</span>
@@ -53,13 +51,12 @@
                         <span class="chevron">▾</span>
                     </button>
                     <div class="menu-sub-list" id="advanced-sub-list">
-                        <button class="menu-sub-item" data-page="advanced-contextmenu" type="button"><span class="icon">🧩</span><span class="label">右键设置</span></button>
-                        <button class="menu-sub-item" data-page="advanced-autosplit" type="button"><span class="icon">✂️</span><span class="label">自动拆书</span></button>
-                        <button class="menu-sub-item" data-page="advanced-knowledge" type="button"><span class="icon">📖</span><span class="label">知识库</span></button>
-                        <button class="menu-sub-item" data-page="advanced-mindmap" type="button"><span class="icon">🧭</span><span class="label">思维导图大纲</span></button>
+                        {% for item in nav_advanced_items %}
+                        <button class="menu-sub-item{% if item.key == active_page %} active{% endif %}" data-page="{{ item.key }}" type="button"><span class="icon">{{ item.icon }}</span><span class="label">{{ item.label }}</span></button>
+                        {% endfor %}
                     </div>
                 </div>
-                <button class="menu-item" data-page="wallet" type="button"><span class="icon">💰</span><span class="label">用户中心</span></button>
+                {% endif %}
             </nav>
         </aside>
 
@@ -84,6 +81,7 @@
             const subItems = document.querySelectorAll('.menu-sub-item');
             const groupTitle = document.getElementById('advanced-menu-toggle');
             const advancedGroup = document.getElementById('advanced-menu-group');
+            const userCenterPage = '{{ user_center_page }}';
             const THEME_KEY = 'workspaceTheme';
 
             function getCurrentTheme() {
@@ -144,7 +142,7 @@
             });
 
             if (topbarUserCenter) {
-                topbarUserCenter.addEventListener('click', () => openPage('wallet'));
+                topbarUserCenter.addEventListener('click', () => openPage(userCenterPage));
             }
 
             subItems.forEach((item) => {

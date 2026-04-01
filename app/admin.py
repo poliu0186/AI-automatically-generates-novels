@@ -11,6 +11,12 @@ from app.auth import admin_required
 from app.billing import InsufficientBalanceError, admin_adjust_wallet
 from app.extensions import db
 from app.models import AdminSetting, RechargeOrder, SystemUserPermission, User, UserActionLog, WalletLedger
+from app.workspace_nav import (
+    WORKSPACE_NAV_ITEMS,
+    WORKSPACE_NAV_SETTING_KEY,
+    get_workspace_enabled_pages,
+    serialize_enabled_pages,
+)
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -131,6 +137,7 @@ def admin_dashboard():
     tab_permissions = {
         'users': 'can_manage_users',
         'pricing': 'can_manage_pricing',
+        'nav': 'can_manage_pricing',
         'permissions': 'can_manage_users',
         'orders': 'can_view_orders',
         'logs': 'can_view_logs',
@@ -198,6 +205,7 @@ def admin_dashboard():
             User.username.ilike(f'%{user_log_query_text}%')
         ))
     user_logs_pagination = _paginate_query(user_logs_query.order_by(UserActionLog.created_at.desc()), _safe_page('user_log_page'))
+    workspace_nav_enabled = set(get_workspace_enabled_pages())
 
     return render_template(
         'admin.html',
@@ -221,6 +229,8 @@ def admin_dashboard():
         online_user_count=len(online_users),
         online_window_seconds=online_window_seconds,
         format_duration=_format_duration,
+        workspace_nav_items=WORKSPACE_NAV_ITEMS,
+        workspace_nav_enabled=workspace_nav_enabled,
     )
 
 
@@ -327,6 +337,28 @@ def admin_update_campaign():
     db.session.commit()
     flash('充值活动配置已保存。', 'success')
     return redirect(url_for('admin.admin_dashboard', tab='pricing'))
+
+
+@admin_bp.route('/settings/workspace-nav', methods=['POST'])
+@login_required
+@admin_required
+def admin_update_workspace_nav():
+    if not _has_permission('can_manage_pricing'):
+        flash('当前账号没有导航配置权限。', 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='nav'))
+
+    selected = request.form.getlist('enabled_pages')
+    payload = serialize_enabled_pages(selected)
+    parsed = json.loads(payload)
+    enabled_pages = parsed.get('enabled_pages') or []
+    if not enabled_pages:
+        flash('至少保留一个侧边栏功能，避免用户进入空白工作台。', 'danger')
+        return redirect(url_for('admin.admin_dashboard', tab='nav'))
+
+    _save_setting(WORKSPACE_NAV_SETTING_KEY, payload, current_user.id)
+    db.session.commit()
+    flash('侧边栏导航上下架配置已生效。', 'success')
+    return redirect(url_for('admin.admin_dashboard', tab='nav'))
 
 
 @admin_bp.route('/settings/user-log-policy', methods=['POST'])

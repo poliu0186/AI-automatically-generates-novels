@@ -5,7 +5,8 @@ from cryptography.fernet import Fernet, InvalidToken
 
 
 def _read_secret_file(path):
-    with open(path, 'r', encoding='utf-8') as f:
+    real_path = os.path.expanduser(os.path.expandvars(str(path or '').strip()))
+    with open(real_path, 'r', encoding='utf-8') as f:
         return f.read().strip()
 
 

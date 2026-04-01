@@ -220,6 +220,7 @@
         <div class="tabs">
             <a href="{{ url_for('admin.admin_dashboard', tab='users') }}" class="{% if active_tab == 'users' %}active{% endif %}">用户管理</a>
             <a href="{{ url_for('admin.admin_dashboard', tab='pricing') }}" class="{% if active_tab == 'pricing' %}active{% endif %}">费率与活动</a>
+            <a href="{{ url_for('admin.admin_dashboard', tab='nav') }}" class="{% if active_tab == 'nav' %}active{% endif %}">导航上下架</a>
             <a href="{{ url_for('admin.admin_dashboard', tab='permissions') }}" class="{% if active_tab == 'permissions' %}active{% endif %}">系统权限</a>
             <a href="{{ url_for('admin.admin_dashboard', tab='orders') }}" class="{% if active_tab == 'orders' %}active{% endif %}">订单流水</a>
             <a href="{{ url_for('admin.admin_dashboard', tab='logs') }}" class="{% if active_tab == 'logs' %}active{% endif %}">操作日志</a>
@@ -390,6 +391,38 @@
                     <button type="submit" class="btn secondary">保存活动配置</button>
                 </form>
             </div>
+        </div>
+        {% elif active_tab == 'nav' %}
+        <div class="section">
+            <h3 class="section-title">侧边栏功能上下架</h3>
+            <p class="hint">勾选表示上线（显示在普通用户工作台侧边栏），取消勾选表示下架（入口隐藏且路由不可访问）。</p>
+            <form method="post" action="{{ url_for('admin.admin_update_workspace_nav') }}">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>上线</th>
+                            <th>功能名称</th>
+                            <th>页面标识</th>
+                            <th>分组</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in workspace_nav_items %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="enabled_pages" value="{{ item.key }}" {% if item.key in workspace_nav_enabled %}checked{% endif %}>
+                            </td>
+                            <td>{{ item.icon }} {{ item.label }}</td>
+                            <td>{{ item.key }}</td>
+                            <td>{% if item.group == 'advanced' %}创作工具{% else %}主导航{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div style="margin-top:12px;">
+                    <button type="submit" class="btn primary">保存导航配置</button>
+                </div>
+            </form>
         </div>
         {% elif active_tab == 'permissions' %}
         <div class="section">
