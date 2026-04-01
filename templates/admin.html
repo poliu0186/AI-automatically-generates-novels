@@ -5,36 +5,224 @@
     <title>管理员后台 - 小说创作助手</title>
     <link crossorigin="anonymous" media="all" rel="stylesheet" href="{{ url_for('static', filename='cs.css') }}" />
     <style>
-        body { background: #f5f7fb; margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
-        .admin-page { max-width: 1100px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 18px 48px rgba(0,0,0,0.08); padding: 28px; }
-        h2 { margin-top: 0; color: #222; }
-        .top-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-        .top-actions a { text-decoration: none; color: #007bff; }
-        .message { margin-bottom: 16px; padding: 12px 14px; border-radius: 12px; font-size: 14px; }
-        .message.success { background: #eaf7ef; color: #257a35; }
-        .message.danger { background: #fdecea; color: #af2e2e; }
-        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        th, td { padding: 12px 14px; border-bottom: 1px solid #e8ebf0; text-align: left; }
-        th { background: #f7f9fc; color: #333; font-weight: 600; }
+        :root {
+            --bg: #f3f6f9;
+            --panel: #ffffff;
+            --text: #142133;
+            --muted: #5c6b80;
+            --line: #e2e8f0;
+            --brand: #0f766e;
+            --brand-2: #155e75;
+            --ok-bg: #e9f9ef;
+            --ok-tx: #166534;
+            --err-bg: #fdecec;
+            --err-tx: #991b1b;
+        }
+        body {
+            background: radial-gradient(circle at top right, #e5f6f4 0%, var(--bg) 45%, #eef2f7 100%);
+            margin: 0;
+            padding: 24px;
+            color: var(--text);
+            font-family: "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        .admin-page {
+            max-width: 1320px;
+            margin: 0 auto;
+            background: var(--panel);
+            border-radius: 18px;
+            box-shadow: 0 22px 56px rgba(15, 23, 42, 0.12);
+            padding: 24px;
+        }
+        h2, h3 { margin: 0; }
+        .top-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .top-actions .links a {
+            text-decoration: none;
+            margin-left: 12px;
+            color: var(--brand-2);
+            font-weight: 600;
+        }
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0 20px;
+        }
+        .tabs a {
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid #d6dee7;
+            color: #294050;
+            font-size: 14px;
+            font-weight: 600;
+            background: #f8fbfe;
+        }
+        .tabs a.active {
+            background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+            color: #fff;
+            border-color: transparent;
+            box-shadow: 0 8px 20px rgba(21, 94, 117, 0.25);
+        }
+        .message {
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        .message.success { background: var(--ok-bg); color: var(--ok-tx); }
+        .message.danger { background: var(--err-bg); color: var(--err-tx); }
+        .section {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: #fff;
+        }
+        .section-title {
+            margin-bottom: 10px;
+            color: #0f2942;
+            font-size: 18px;
+        }
+        .hint {
+            color: var(--muted);
+            font-size: 13px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #edf2f7;
+            text-align: left;
+            vertical-align: top;
+            font-size: 14px;
+        }
+        th { color: #334155; background: #f8fafc; }
         td.actions { white-space: nowrap; }
-        .admin-tag { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #c8f0d3; color: #257a35; font-size: 12px; }
-        .disabled-tag { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #ffe6e6; color: #af2e2e; font-size: 12px; }
-        .action-button { margin-right: 6px; border: none; border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: all 0.2s ease; }
-        .action-button.primary { background: #4CAF50; color: #fff; }
-        .action-button.secondary { background: #2196F3; color: #fff; }
-        .action-button.danger { background: #f44336; color: #fff; }
-        .action-button:disabled { opacity: 0.6; cursor: not-allowed; }
-        @media (max-width: 768px) { .admin-page { padding: 18px; } table, th, td { font-size: 14px; } }
+        .stack { display: flex; gap: 6px; flex-wrap: wrap; }
+        .tag {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: #e2e8f0;
+            color: #334155;
+        }
+        .tag.admin { background: #dcfce7; color: #166534; }
+        .tag.disabled { background: #fee2e2; color: #991b1b; }
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 10px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 13px;
+        }
+        .btn.primary { background: #0f766e; }
+        .btn.secondary { background: #2563eb; }
+        .btn.warn { background: #c2410c; }
+        .btn.danger { background: #dc2626; }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .inline-form { display: inline-block; margin-right: 4px; }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .field { display: flex; flex-direction: column; gap: 4px; }
+        .field label { color: #334155; font-size: 13px; font-weight: 600; }
+        .field input, .field select, .field textarea {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text);
+            background: #fff;
+        }
+        .field textarea { min-height: 180px; resize: vertical; }
+        .panel-row {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 14px;
+        }
+        .toolbar-line {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: end;
+            margin-bottom: 12px;
+        }
+        .toolbar-line .field {
+            min-width: 220px;
+            flex: 1 1 220px;
+        }
+        .pager {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+        .pager-links {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .pager-links a {
+            text-decoration: none;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            color: #1e3a4b;
+            background: #f8fafc;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .pager-links a.is-disabled {
+            pointer-events: none;
+            opacity: 0.45;
+        }
+        @media (max-width: 980px) {
+            .admin-page { padding: 16px; }
+            .grid, .panel-row { grid-template-columns: 1fr; }
+            body { padding: 12px; }
+        }
     </style>
 </head>
 <body>
+    {% macro render_pager(pagination, page_key, tab_name) %}
+        {% if pagination and pagination.pages > 1 %}
+        <div class="pager">
+            <div class="hint">共 {{ pagination.total }} 条，第 {{ pagination.page }} / {{ pagination.pages }} 页</div>
+            <div class="pager-links">
+                <a href="{{ build_dashboard_page_url(page_key, pagination.page - 1, tab_name) }}" class="{% if pagination.page <= 1 %}is-disabled{% endif %}">上一页</a>
+                <a href="{{ build_dashboard_page_url(page_key, pagination.page + 1, tab_name) }}" class="{% if pagination.page >= pagination.pages %}is-disabled{% endif %}">下一页</a>
+            </div>
+        </div>
+        {% endif %}
+    {% endmacro %}
+
     <div class="admin-page">
         <div class="top-actions">
-            <h2>管理员后台</h2>
             <div>
+                <h2>运营管理后台</h2>
+                <div class="hint">当前共有 {{ users|length }} 位用户</div>
+            </div>
+            <div class="links">
                 <a href="{{ url_for('main.home') }}">返回主页面</a>
                 <a href="{{ url_for('auth.logout') }}">退出登录</a>
             </div>
+        </div>
+
+        <div class="tabs">
+            <a href="{{ url_for('admin.admin_dashboard', tab='users') }}" class="{% if active_tab == 'users' %}active{% endif %}">用户管理</a>
+            <a href="{{ url_for('admin.admin_dashboard', tab='pricing') }}" class="{% if active_tab == 'pricing' %}active{% endif %}">费率与活动</a>
+            <a href="{{ url_for('admin.admin_dashboard', tab='permissions') }}" class="{% if active_tab == 'permissions' %}active{% endif %}">系统权限</a>
+            <a href="{{ url_for('admin.admin_dashboard', tab='orders') }}" class="{% if active_tab == 'orders' %}active{% endif %}">订单流水</a>
+            <a href="{{ url_for('admin.admin_dashboard', tab='logs') }}" class="{% if active_tab == 'logs' %}active{% endif %}">操作日志</a>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -45,51 +233,349 @@
             {% endif %}
         {% endwith %}
 
-        <p>当前共有 {{ users|length }} 位用户。</p>
+        {% if active_tab == 'users' %}
+        <div class="section">
+            <h3 class="section-title">在线用户监控</h3>
+            <p class="hint">当前在线 {{ online_user_count }} 人（{{ (online_window_seconds // 60) }} 分钟内有活跃请求即视为在线）。</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户名</th>
+                        <th>角色</th>
+                        <th>累计登录</th>
+                        <th>在线时长（累计）</th>
+                        <th>最近活跃时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for online_user in online_users %}
+                    <tr>
+                        <td>{{ online_user.id }}</td>
+                        <td>{{ online_user.username }}</td>
+                        <td>{% if online_user.is_admin %}<span class="tag admin">管理员</span>{% else %}<span class="tag">普通用户</span>{% endif %}</td>
+                        <td>{{ online_user.login_count or 0 }}</td>
+                        <td>{{ format_duration(online_user.total_online_seconds or 0) }}</td>
+                        <td>{{ online_user.last_seen_at or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="hint">当前没有在线用户。</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="section">
+            <h3 class="section-title">用户管理与账户操作</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户名</th>
+                        <th>角色</th>
+                        <th>状态</th>
+                        <th>累计登录</th>
+                        <th>在线时长（累计）</th>
+                        <th>代币余额</th>
+                        <th>创建时间</th>
+                        <th class="actions">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    {% set wallet = user.wallet_account %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>
+                            {% if user.is_admin %}<span class="tag admin">管理员</span>{% else %}<span class="tag">普通用户</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if not user.is_active %}<span class="tag disabled">已禁用</span>{% else %}<span class="tag">正常</span>{% endif %}
+                        </td>
+                        <td>{{ user.login_count or 0 }}</td>
+                        <td>{{ format_duration(user.total_online_seconds or 0) }}</td>
+                        <td>
+                            可用 {{ wallet.available_coins if wallet else 0 }}
+                            <br>
+                            锁定 {{ wallet.reserved_coins if wallet else 0 }}
+                        </td>
+                        <td>{{ user.created_at or '-' }}</td>
+                        <td class="actions">
+                            <div class="stack">
+                                <form method="post" action="{{ url_for('admin.admin_user_action', user_id=user.id) }}" class="inline-form">
+                                    <input type="hidden" name="action" value="toggle_admin">
+                                    <button type="submit" class="btn secondary" {% if user.id == current_user.id %}disabled{% endif %}>{% if user.is_admin %}撤销管理员{% else %}设为管理员{% endif %}</button>
+                                </form>
+                                <form method="post" action="{{ url_for('admin.admin_user_action', user_id=user.id) }}" class="inline-form">
+                                    <input type="hidden" name="action" value="toggle_active">
+                                    <button type="submit" class="btn warn" {% if user.id == current_user.id %}disabled{% endif %}>{% if user.is_active %}禁用{% else %}启用{% endif %}</button>
+                                </form>
+                                <form method="post" action="{{ url_for('admin.admin_user_action', user_id=user.id) }}" class="inline-form">
+                                    <input type="hidden" name="action" value="unlock">
+                                    <button type="submit" class="btn primary">解锁登录</button>
+                                </form>
+                            </div>
+                            <form method="post" action="{{ url_for('admin.admin_adjust_user_coins', user_id=user.id) }}" class="grid" style="margin-top:8px;">
+                                <div class="field">
+                                    <label>操作</label>
+                                    <select name="op_type">
+                                        <option value="grant">补发</option>
+                                        <option value="deduct">扣除</option>
+                                        <option value="recharge">充值入账</option>
+                                        <option value="consume">模拟消费</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>代币数量</label>
+                                    <input type="number" min="1" name="coins" required>
+                                </div>
+                                <div class="field" style="grid-column:1 / -1;">
+                                    <label>备注</label>
+                                    <input type="text" name="remark" placeholder="如：客服补偿、误扣回滚">
+                                </div>
+                                <div>
+                                    <button type="submit" class="btn primary">执行代币调整</button>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% elif active_tab == 'pricing' %}
+        <div class="panel-row">
+            <div class="section">
+                <h3 class="section-title">费率与支付配置</h3>
+                <form method="post" action="{{ url_for('admin.admin_update_pricing') }}">
+                    <div class="grid">
+                        <div class="field">
+                            <label>每 1000 Token 扣费代币</label>
+                            <input name="coins_per_1000_tokens" value="{{ pricing.coins_per_1000_tokens }}" required>
+                        </div>
+                        <div class="field">
+                            <label>1 元可充值代币数</label>
+                            <input name="coins_per_yuan" value="{{ pricing.coins_per_yuan }}" required>
+                        </div>
+                        <div class="field">
+                            <label>审核一次扣费代币</label>
+                            <input name="review_audit_coins" value="{{ pricing.review_audit_coins }}" required>
+                        </div>
+                        <div class="field">
+                            <label>最小充值金额（元）</label>
+                            <input name="min_recharge_amount_yuan" value="{{ pricing.min_recharge_amount_yuan }}" required>
+                        </div>
+                        <div class="field">
+                            <label>支付通道</label>
+                            <select name="payment_channel">
+                                <option value="alipay" {% if pricing.payment_channel == 'alipay' %}selected{% endif %}>支付宝</option>
+                                <option value="manual" {% if pricing.payment_channel == 'manual' %}selected{% endif %}>人工下发</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px;"><button type="submit" class="btn primary">保存费率配置</button></div>
+                </form>
+            </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>用户名</th>
-                    <th>管理员</th>
-                    <th>状态</th>
-                    <th>创建时间</th>
-                    <th class="actions">操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr>
-                    <td>{{ user.id }}</td>
-                    <td>{{ user.username }}</td>
-                    <td>{% if user.is_admin %}<span class="admin-tag">管理员</span>{% else %}普通用户{% endif %}</td>
-                    <td>{% if not user.is_active %}<span class="disabled-tag">已禁用</span>{% else %}正常{% endif %}</td>
-                    <td>{{ user.created_at or '-' }}</td>
-                    <td class="actions">
-                        <form method="post" action="{{ url_for('admin.admin_user_action', user_id=user.id) }}" style="display:inline-block;">
-                            <input type="hidden" name="action" value="toggle_admin">
-                            <button type="submit" class="action-button secondary" {% if user.id == current_user.id %}disabled{% endif %}>
-                                {% if user.is_admin %}撤销管理员{% else %}设为管理员{% endif %}
-                            </button>
+            <div class="section">
+                <h3 class="section-title">充值活动配置</h3>
+                <div class="hint">JSON 示例支持 bonus_rules 阶梯赠送。</div>
+                <form method="post" action="{{ url_for('admin.admin_update_campaign') }}">
+                    <div class="field">
+                        <label>活动配置 JSON</label>
+                        <textarea name="campaign" spellcheck="false">{{ campaign }}</textarea>
+                    </div>
+                    <button type="submit" class="btn secondary">保存活动配置</button>
+                </form>
+            </div>
+        </div>
+        {% elif active_tab == 'permissions' %}
+        <div class="section">
+            <h3 class="section-title">系统用户权限</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>管理员</th>
+                        {% for key, label in permission_labels.items() %}
+                        <th>{{ label }}</th>
+                        {% endfor %}
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users if user.is_admin %}
+                    {% set perm = user_permissions.get(user.id) %}
+                    <tr>
+                        <form method="post" action="{{ url_for('admin.admin_update_user_permission', user_id=user.id) }}">
+                            <td>{{ user.username }}</td>
+                            {% for key, label in permission_labels.items() %}
+                            <td>
+                                <input type="checkbox" name="{{ key }}" {% if perm and perm|attr(key) %}checked{% elif not perm %}checked{% endif %}>
+                            </td>
+                            {% endfor %}
+                            <td><button type="submit" class="btn primary">保存权限</button></td>
                         </form>
-                        <form method="post" action="{{ url_for('admin.admin_user_action', user_id=user.id) }}" style="display:inline-block;">
-                            <input type="hidden" name="action" value="toggle_active">
-                            <button type="submit" class="action-button primary" {% if user.id == current_user.id %}disabled{% endif %}>
-                                {% if user.is_active %}禁用{% else %}启用{% endif %}
-                            </button>
-                        </form>
-                        <form method="post" action="{{ url_for('admin.admin_user_action', user_id=user.id) }}" style="display:inline-block;">
-                            <input type="hidden" name="action" value="delete">
-                            <button type="submit" class="action-button danger" {% if user.id == current_user.id %}disabled{% endif %}>
-                                删除
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% elif active_tab == 'orders' %}
+        <div class="section">
+            <h3 class="section-title">订单流水</h3>
+            <form method="get" class="toolbar-line">
+                <input type="hidden" name="tab" value="orders">
+                <input type="hidden" name="ledger_q" value="{{ ledger_query_text }}">
+                <input type="hidden" name="ledger_page" value="1">
+                <div class="field">
+                    <label>订单检索</label>
+                    <input type="text" name="order_q" value="{{ order_query_text }}" placeholder="订单号 / 用户 / 状态 / 通道">
+                </div>
+                <div>
+                    <button type="submit" class="btn primary">检索订单</button>
+                    <a href="{{ url_for('admin.admin_dashboard', tab='orders') }}" class="btn secondary" style="display:inline-block;line-height:18px;text-decoration:none;">重置</a>
+                </div>
+            </form>
+            <table>
+                <thead>
+                    <tr>
+                        <th>订单号</th>
+                        <th>用户</th>
+                        <th>金额</th>
+                        <th>代币</th>
+                        <th>状态</th>
+                        <th>通道</th>
+                        <th>创建时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders_pagination['items'] %}
+                    <tr>
+                        <td>{{ order.order_no }}</td>
+                        <td>{{ order.user.username if order.user else order.user_id }}</td>
+                        <td>{{ order.amount_yuan }}</td>
+                        <td>{{ order.coins }}</td>
+                        <td>{{ order.status }}</td>
+                        <td>{{ order.channel }}</td>
+                        <td>{{ order.created_at }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="hint">没有匹配的订单记录。</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {{ render_pager(orders_pagination, 'order_page', 'orders') }}
+        </div>
+        <div class="section">
+            <h3 class="section-title">代币账本（最近 150 条）</h3>
+            <form method="get" class="toolbar-line">
+                <input type="hidden" name="tab" value="orders">
+                <input type="hidden" name="order_q" value="{{ order_query_text }}">
+                <input type="hidden" name="order_page" value="1">
+                <div class="field">
+                    <label>账本检索</label>
+                    <input type="text" name="ledger_q" value="{{ ledger_query_text }}" placeholder="用户名 / 类型 / 订单号 / 备注">
+                </div>
+                <div>
+                    <button type="submit" class="btn primary">检索账本</button>
+                </div>
+            </form>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户</th>
+                        <th>类型</th>
+                        <th>可用变化</th>
+                        <th>可用余额</th>
+                        <th>备注</th>
+                        <th>时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in ledger_pagination['items'] %}
+                    <tr>
+                        <td>{{ item.id }}</td>
+                        <td>{{ item.user.username if item.user else item.user_id }}</td>
+                        <td>{{ item.change_type }}</td>
+                        <td>{{ item.available_delta }}</td>
+                        <td>{{ item.available_after }}</td>
+                        <td>{{ item.remark }}</td>
+                        <td>{{ item.created_at }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="hint">没有匹配的账本流水。</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {{ render_pager(ledger_pagination, 'ledger_page', 'orders') }}
+        </div>
+        {% elif active_tab == 'logs' %}
+        <div class="section">
+            <h3 class="section-title">用户操作日志采集策略</h3>
+            <p class="hint">默认推荐“仅关键步骤”，只采集登录、充值下单、充值到账、扣币等关键动作；非登录、非扣币类动作不再默认采集。</p>
+            <form method="post" action="{{ url_for('admin.admin_update_user_log_policy') }}" class="toolbar-line">
+                <div class="field" style="max-width:280px;">
+                    <label>采集策略</label>
+                    <select name="user_action_log_mode">
+                        {% for mode, label in user_log_mode_labels.items() %}
+                        <option value="{{ mode }}" {% if user_log_mode == mode %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" class="btn primary">保存采集策略</button>
+                </div>
+            </form>
+        </div>
+        <div class="section">
+            <h3 class="section-title">用户操作日志</h3>
+            <form method="get" class="toolbar-line">
+                <input type="hidden" name="tab" value="logs">
+                <div class="field">
+                    <label>用户日志检索</label>
+                    <input type="text" name="user_log_q" value="{{ user_log_query_text }}" placeholder="用户 / 动作 / IP / 详情">
+                </div>
+                <div>
+                    <button type="submit" class="btn primary">检索用户日志</button>
+                    <a href="{{ url_for('admin.admin_dashboard', tab='logs') }}" class="btn secondary" style="display:inline-block;line-height:18px;text-decoration:none;">重置</a>
+                </div>
+            </form>
+            <table>
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>用户</th>
+                        <th>动作</th>
+                        <th>IP</th>
+                        <th>详情</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in user_logs_pagination['items'] %}
+                    <tr>
+                        <td>{{ log.created_at }}</td>
+                        <td>{{ log.user.username if log.user else log.user_id }}</td>
+                        <td>{{ log.action }}</td>
+                        <td>{{ log.ip or '-' }}</td>
+                        <td>{{ log.detail }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="hint">没有匹配的用户日志。</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {{ render_pager(user_logs_pagination, 'user_log_page', 'logs') }}
+        </div>
+        {% endif %}
     </div>
 </body>
 </html>

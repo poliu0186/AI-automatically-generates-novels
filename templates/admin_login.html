@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>管理员登录 - 小说创作助手</title>
+    <link crossorigin="anonymous" media="all" rel="stylesheet" href="{{ url_for('static', filename='cs.css') }}" />
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at top, #d9f3ef 0%, #eef4f7 45%, #f6f8fb 100%);
+            font-family: "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        .auth-wrapper {
+            width: min(440px, calc(100% - 24px));
+            padding: 30px;
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 22px 56px rgba(15, 23, 42, 0.14);
+            border: 1px solid #dce7e6;
+        }
+        .eyebrow {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #e6f7f4;
+            color: #0f766e;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            margin-bottom: 12px;
+        }
+        h2 { margin: 0 0 10px; color: #102535; }
+        .desc { margin: 0 0 18px; color: #5c6b80; font-size: 14px; }
+        .auth-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+        .auth-field label { color: #415467; font-size: 14px; }
+        .auth-field input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #d4dee7;
+            border-radius: 10px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .captcha-row { display: flex; gap: 10px; align-items: center; }
+        .captcha-image { width: 140px; height: 44px; border: 1px solid #dce2ea; border-radius: 10px; background: #f7f9ff; }
+        .captcha-refresh {
+            border: none;
+            background: #e8f6f4;
+            color: #0f766e;
+            border-radius: 10px;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .auth-button { width: 100%; margin-top: 10px; }
+        .auth-footer { margin-top: 18px; color: #666; font-size: 14px; text-align: center; }
+        .auth-footer a { color: #0f766e; text-decoration: none; }
+        .message { margin-bottom: 14px; padding: 12px 14px; border-radius: 10px; font-size: 14px; }
+        .message.success { background: #eaf7ef; color: #257a35; }
+        .message.danger { background: #fdecea; color: #af2e2e; }
+    </style>
+</head>
+<body>
+    <div class="auth-wrapper">
+        <div class="eyebrow">ADMIN ACCESS</div>
+        <h2>管理员后台登录</h2>
+        <p class="desc">此入口仅用于系统管理员。普通用户请使用标准登录页。</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if otp_required %}
+        <form method="post">
+            <input type="hidden" name="step" value="otp">
+            <input type="hidden" name="next" value="{{ pending_next or '' }}">
+            <div class="auth-field">
+                <label>管理员账号</label>
+                <input type="text" value="{{ pending_username or '-' }}" disabled>
+            </div>
+            <div class="auth-field">
+                <label for="otp_code">邮箱验证码</label>
+                <input id="otp_code" name="otp_code" type="text" required maxlength="8" placeholder="请输入邮箱验证码" autocomplete="one-time-code">
+            </div>
+            <button type="submit" class="primary-button auth-button">验证并进入后台</button>
+        </form>
+        {% else %}
+        <form method="post">
+            <input type="hidden" name="step" value="password">
+            <div class="auth-field">
+                <label for="username">管理员用户名</label>
+                <input id="username" name="username" type="text" required autocomplete="username" value="{{ request.form.get('username', '') }}">
+            </div>
+            <div class="auth-field">
+                <label for="password">密码</label>
+                <input id="password" name="password" type="password" required autocomplete="current-password">
+            </div>
+            <div class="auth-field">
+                <label for="captcha">图形验证码</label>
+                <div class="captcha-row">
+                    <img id="captcha-img" class="captcha-image" src="{{ url_for('auth.login_captcha') }}" alt="图形验证码">
+                    <button id="btn-refresh-captcha" class="captcha-refresh" type="button">换一张</button>
+                </div>
+                <input id="captcha" name="captcha" type="text" required maxlength="8" placeholder="请输入验证码" autocomplete="off">
+            </div>
+            <button type="submit" class="primary-button auth-button">进入管理员后台</button>
+        </form>
+        {% endif %}
+
+        <div class="auth-footer">
+            <a href="{{ url_for('auth.login') }}">返回普通用户登录</a>
+        </div>
+    </div>
+    <script>
+        (function () {
+            const img = document.getElementById('captcha-img');
+            const btn = document.getElementById('btn-refresh-captcha');
+
+            function refreshCaptcha() {
+                if (!img) return;
+                img.src = "{{ url_for('auth.login_captcha') }}?t=" + Date.now();
+            }
+
+            if (img) img.addEventListener('click', refreshCaptcha);
+            if (btn) btn.addEventListener('click', refreshCaptcha);
+        })();
+    </script>
+</body>
+</html>

@@ -11,10 +11,136 @@ from flask_login import login_user, login_required, logout_user, current_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from app.activity_logging import log_user_action
 from app.extensions import db, login_manager
 from app.models import PasswordResetRequest, User
 
 auth_bp = Blueprint('auth', __name__)
+
+ADMIN_LOGIN_OTP_SESSION_KEY = 'admin_login_otp_payload'
+
+
+def _post_login_redirect(user, next_url=None):
+    if next_url:
+        return redirect(next_url)
+    if getattr(user, 'is_admin', False):
+        return redirect(url_for('admin.admin_dashboard'))
+    return redirect(url_for('main.home'))
+
+
+def _otp_hash(code):
+    return hashlib.sha256(str(code or '').encode('utf-8')).hexdigest()
+
+
+def _admin_otp_length():
+    return max(4, min(int(current_app.config.get('ADMIN_OTP_LENGTH', 6) or 6), 8))
+
+
+def _admin_otp_payload():
+    payload = session.get(ADMIN_LOGIN_OTP_SESSION_KEY)
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _clear_admin_otp_payload():
+    session.pop(ADMIN_LOGIN_OTP_SESSION_KEY, None)
+
+
+def _generate_admin_otp_code():
+    digits = '0123456789'
+    return ''.join(secrets.choice(digits) for _ in range(_admin_otp_length()))
+
+
+def _send_admin_login_otp_email(to_email, code):
+    host = (current_app.config.get('MAIL_HOST') or '').strip()
+    port = int(current_app.config.get('MAIL_PORT', 465))
+    username = (current_app.config.get('MAIL_USERNAME') or '').strip()
+    password = current_app.config.get('MAIL_PASSWORD') or ''
+    sender = (current_app.config.get('MAIL_SENDER') or username).strip()
+    use_tls = bool(current_app.config.get('MAIL_USE_TLS', False))
+    timeout_seconds = int(current_app.config.get('MAIL_TIMEOUT_SECONDS', 8))
+
+    if not host or not sender or not username or not password:
+        current_app.logger.warning('MAIL_* config missing; skip sending admin OTP email')
+        return False
+
+    ttl = int(current_app.config.get('ADMIN_OTP_TTL_SECONDS', 300) or 300)
+    msg = EmailMessage()
+    msg['Subject'] = '小说创作助手 - 管理员登录验证码'
+    msg['From'] = sender
+    msg['To'] = to_email
+    msg.set_content(
+        '管理员您好，\n\n'
+        '您正在登录后台管理系统，请输入以下验证码完成二次验证：\n\n'
+        f'{code}\n\n'
+        f'验证码 {ttl} 秒内有效。若非本人操作，请立即修改密码。\n'
+    )
+
+    try:
+        if use_tls:
+            with smtplib.SMTP(host, port, timeout=timeout_seconds) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(username, password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP_SSL(host, port, timeout=timeout_seconds) as server:
+                server.login(username, password)
+                server.send_message(msg)
+        return True
+    except Exception:
+        current_app.logger.exception('Failed to send admin OTP email')
+        return False
+
+
+def _issue_admin_login_otp(user, next_url=''):
+    email = normalize_email(getattr(user, 'email', None))
+    if not email:
+        return False, '管理员账号未配置邮箱，无法进行二次验证。'
+
+    now_ts = int(time.time())
+    cooldown = max(int(current_app.config.get('ADMIN_OTP_RESEND_COOLDOWN_SECONDS', 60) or 60), 10)
+    existing = _admin_otp_payload()
+    if existing and int(existing.get('user_id') or 0) == int(user.id):
+        sent_at = int(existing.get('sent_at') or 0)
+        if now_ts - sent_at < cooldown:
+            remain = cooldown - (now_ts - sent_at)
+            return False, f'验证码已发送，请 {remain} 秒后再试。'
+
+    code = _generate_admin_otp_code()
+    if not _send_admin_login_otp_email(email, code):
+        return False, '验证码发送失败，请检查邮箱配置后重试。'
+
+    ttl = max(int(current_app.config.get('ADMIN_OTP_TTL_SECONDS', 300) or 300), 60)
+    session[ADMIN_LOGIN_OTP_SESSION_KEY] = {
+        'user_id': int(user.id),
+        'code_hash': _otp_hash(code),
+        'expires_at': now_ts + ttl,
+        'sent_at': now_ts,
+        'next': next_url or '',
+    }
+    return True, '验证码已发送到管理员邮箱，请输入验证码继续。'
+
+
+def _admin_otp_view_model():
+    payload = _admin_otp_payload() or {}
+    user_id = int(payload.get('user_id') or 0)
+    pending_user = User.query.get(user_id) if user_id else None
+    return {
+        'otp_required': bool(payload),
+        'pending_username': pending_user.username if pending_user else '',
+        'pending_next': str(payload.get('next') or ''),
+    }
+
+
+def _complete_login(user, *, action_name='login_success', detail='账号登录成功'):
+    clear_user_login_failures(user)
+    user.login_count = int(user.login_count or 0) + 1
+    log_user_action(user.id, action_name, detail)
+    login_user(user)
+    db.session.commit()
 
 
 def get_user_by_username(username):
@@ -312,7 +438,7 @@ def login_captcha():
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('main.home'))
+        return _post_login_redirect(current_user)
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -336,11 +462,12 @@ def login():
         if user and check_password_hash(user.password_hash, password):
             if not user.is_active:
                 flash('该账号已被禁用，如有疑问请联系管理员。', 'danger')
+            elif user.is_admin:
+                flash('管理员账号请使用后台专用登录入口。', 'danger')
             else:
-                clear_user_login_failures(user)
-                login_user(user)
+                _complete_login(user)
                 flash('登录成功。', 'success')
-                return redirect(request.args.get('next') or url_for('main.home'))
+                return _post_login_redirect(user, request.args.get('next'))
         else:
             locked_now = register_user_login_failure(user)
             if locked_now:
@@ -349,6 +476,84 @@ def login():
                 flash('用户名或密码错误，请重试。', 'danger')
 
     return render_template('login.html')
+
+
+@auth_bp.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if current_user.is_authenticated:
+        return _post_login_redirect(current_user)
+
+    if request.method == 'POST':
+        step = (request.form.get('step') or 'password').strip().lower()
+
+        if step == 'otp':
+            payload = _admin_otp_payload()
+            code = (request.form.get('otp_code') or '').strip()
+            if not payload:
+                flash('验证码会话已失效，请重新登录。', 'danger')
+                return render_template('admin_login.html', **_admin_otp_view_model())
+
+            now_ts = int(time.time())
+            if now_ts > int(payload.get('expires_at') or 0):
+                _clear_admin_otp_payload()
+                flash('验证码已过期，请重新登录。', 'danger')
+                return render_template('admin_login.html', **_admin_otp_view_model())
+
+            if _otp_hash(code) != str(payload.get('code_hash') or ''):
+                flash('验证码不正确，请重试。', 'danger')
+                return render_template('admin_login.html', **_admin_otp_view_model())
+
+            user = User.query.get(int(payload.get('user_id') or 0))
+            if not user or not user.is_active or not user.is_admin:
+                _clear_admin_otp_payload()
+                flash('管理员账号状态异常，请联系系统管理员。', 'danger')
+                return render_template('admin_login.html', **_admin_otp_view_model())
+
+            next_url = str(payload.get('next') or request.form.get('next') or '')
+            _clear_admin_otp_payload()
+            _complete_login(user, action_name='admin_login_success', detail='管理员后台登录成功')
+            flash('管理员登录成功。', 'success')
+            return _post_login_redirect(user, next_url)
+
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        captcha = request.form.get('captcha', '').strip()
+        user = get_user_by_username(username)
+
+        if user:
+            check_and_auto_unlock_user(user)
+            remain = lock_remaining_seconds(user)
+            if remain > 0:
+                hours = max(1, int((remain + 3599) / 3600))
+                flash(f'该账号已被锁定，请 {hours} 小时后重试，或联系管理员解锁。', 'danger')
+                return render_template('admin_login.html')
+
+        if not is_login_captcha_valid(captcha):
+            flash('图形验证码错误或已过期，请重试。', 'danger')
+            register_user_login_failure(user)
+            return render_template('admin_login.html')
+
+        if user and check_password_hash(user.password_hash, password):
+            if not user.is_active:
+                flash('该账号已被禁用，如有疑问请联系更高权限管理员。', 'danger')
+            elif not user.is_admin:
+                flash('当前账号不是管理员，请使用普通用户登录入口。', 'danger')
+            else:
+                if current_app.config.get('ADMIN_2FA_ENABLED', True):
+                    ok, message = _issue_admin_login_otp(user, next_url=request.args.get('next', ''))
+                    flash(message, 'success' if ok else 'danger')
+                    return render_template('admin_login.html', **_admin_otp_view_model())
+                _complete_login(user, action_name='admin_login_success', detail='管理员后台登录成功')
+                flash('管理员登录成功。', 'success')
+                return _post_login_redirect(user, request.args.get('next'))
+        else:
+            locked_now = register_user_login_failure(user)
+            if locked_now:
+                flash('连续 5 次登录失败，账号已锁定 24 小时。可联系管理员解锁。', 'danger')
+            else:
+                flash('用户名或密码错误，请重试。', 'danger')
+
+    return render_template('admin_login.html', **_admin_otp_view_model())
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])

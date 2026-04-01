@@ -14,13 +14,25 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
     locked_until = db.Column(db.DateTime)
+    last_seen_at = db.Column(db.DateTime, index=True)
+    login_count = db.Column(db.Integer, nullable=False, default=0)
+    total_online_seconds = db.Column(db.BigInteger, nullable=False, default=0)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     wallet_account = db.relationship('WalletAccount', back_populates='user', uselist=False, cascade='all, delete-orphan')
     recharge_orders = db.relationship('RechargeOrder', back_populates='user', cascade='all, delete-orphan')
     wallet_ledgers = db.relationship('WalletLedger', back_populates='user', cascade='all, delete-orphan')
     llm_usage_records = db.relationship('LLMUsageRecord', back_populates='user', cascade='all, delete-orphan')
+    exported_articles = db.relationship('ExportedArticle', back_populates='user', cascade='all, delete-orphan')
     password_reset_requests = db.relationship('PasswordResetRequest', back_populates='user', cascade='all, delete-orphan')
+    admin_permissions = db.relationship(
+        'SystemUserPermission',
+        back_populates='user',
+        foreign_keys='SystemUserPermission.user_id',
+        uselist=False,
+        cascade='all, delete-orphan'
+    )
+    user_action_logs = db.relationship('UserActionLog', back_populates='user', cascade='all, delete-orphan')
 
     def get_id(self):
         return str(self.id)
@@ -122,3 +134,72 @@ class WalletLedger(db.Model):
     user = db.relationship('User', back_populates='wallet_ledgers')
     wallet_account = db.relationship('WalletAccount', back_populates='ledgers')
     usage_record = db.relationship('LLMUsageRecord', back_populates='ledgers')
+
+
+class ExportedArticle(db.Model):
+    __tablename__ = 'exported_articles'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)
+    format_type = db.Column(db.String(16), nullable=False, default='txt')
+    content = db.Column(db.Text, nullable=False)
+    content_length = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False, index=True)
+
+    user = db.relationship('User', back_populates='exported_articles')
+
+
+class AdminSetting(db.Model):
+    __tablename__ = 'admin_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    value = db.Column(db.Text, nullable=False, default='')
+    updated_by = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now(), nullable=False)
+
+
+class SystemUserPermission(db.Model):
+    __tablename__ = 'system_user_permissions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=False, index=True)
+    can_manage_users = db.Column(db.Boolean, nullable=False, default=True)
+    can_manage_pricing = db.Column(db.Boolean, nullable=False, default=True)
+    can_manage_wallet_ops = db.Column(db.Boolean, nullable=False, default=True)
+    can_view_orders = db.Column(db.Boolean, nullable=False, default=True)
+    can_view_logs = db.Column(db.Boolean, nullable=False, default=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now(), nullable=False)
+
+    user = db.relationship('User', back_populates='admin_permissions', foreign_keys=[user_id])
+
+
+class AdminOperationLog(db.Model):
+    __tablename__ = 'admin_operation_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    admin_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    target_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
+    module = db.Column(db.String(64), nullable=False, default='admin')
+    action = db.Column(db.String(64), nullable=False)
+    detail = db.Column(db.Text)
+    ip = db.Column(db.String(64))
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False, index=True)
+
+    admin_user = db.relationship('User', foreign_keys=[admin_user_id])
+    target_user = db.relationship('User', foreign_keys=[target_user_id])
+
+
+class UserActionLog(db.Model):
+    __tablename__ = 'user_action_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    action = db.Column(db.String(64), nullable=False)
+    detail = db.Column(db.Text)
+    ip = db.Column(db.String(64))
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False, index=True)
+
+    user = db.relationship('User', back_populates='user_action_logs')

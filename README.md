@@ -282,6 +282,93 @@ python app.py
 
 建议使用 Linux + Gunicorn + Nginx + systemd。
 
+### 公网 HTTPS 与安全配置（强烈建议）
+
+若部署在公网，务必启用 HTTPS。项目已提供可直接改造的 Nginx 模板：
+
+- `deploy/nginx-ai-novel.conf`
+
+关键步骤：
+
+1. 准备域名并解析到云服务器。
+2. 申请证书（推荐 Let's Encrypt + certbot）。
+3. 修改 `deploy/nginx-ai-novel.conf` 中证书路径：
+  - `ssl_certificate`
+  - `ssl_certificate_key`
+4. 重载 Nginx：
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+建议在 `.env` 中显式开启：
+
+```bash
+ENVIRONMENT=production
+FORCE_HTTPS=1
+TRUST_PROXY=1
+SESSION_COOKIE_SECURE=1
+REMEMBER_COOKIE_SECURE=1
+SESSION_COOKIE_SAMESITE=Lax
+ADMIN_2FA_ENABLED=1
+ADMIN_OTP_TTL_SECONDS=300
+ADMIN_OTP_RESEND_COOLDOWN_SECONDS=60
+ADMIN_OTP_LENGTH=6
+```
+
+说明：
+
+- 已支持 HTTP 自动 301 跳转 HTTPS。
+- Flask 层会在生产下强制 HTTPS（可通过 `FORCE_HTTPS=0` 临时关闭）。
+- 会自动下发常见安全响应头（HSTS、X-Frame-Options、nosniff、Referrer-Policy 等）。
+- 管理员登录支持邮箱验证码二次验证（默认开启，可通过 `ADMIN_2FA_ENABLED` 控制）。
+
+附加检查：
+
+- 安全检查清单：`deploy/SECURITY_CHECKLIST.md`
+- 一键检查脚本：`deploy/security-check.sh`
+
+### 敏感密钥避免明文（推荐）
+
+为避免在 `.env` 中出现明文密钥，项目已支持两种兼容方案（旧配置仍可运行）：
+
+1. `*_FILE`：把密钥放在受限权限文件中。
+2. `ENC:...`：把密钥加密后写入 `.env`，运行时自动解密。
+
+示例：
+
+```bash
+API_KEY_1_FILE=/run/secrets/api_key_1
+API_KEY_2=ENC:gAAAAAB...
+ALIPAY_PRIVATE_KEY=ENC:gAAAAAB...
+MAIL_PASSWORD=ENC:gAAAAAB...
+```
+
+如果使用 `ENC:...`，请把主密钥放在系统环境变量（不要写入 `.env`）：
+
+```bash
+export APP_CONFIG_MASTER_KEY='你的Fernet主密钥'
+# 或
+export APP_CONFIG_MASTER_KEY_FILE=/run/secrets/app_config_master_key
+```
+
+生成主密钥和密文：
+
+```bash
+# 1) 生成主密钥
+python deploy/encrypt_secret.py --generate-key
+
+# 2) 生成密文，输出 ENC:...
+python deploy/encrypt_secret.py --key '你的主密钥' --value '真实明文密钥'
+```
+
+迁移建议：
+
+- `.env` 只保留 `ENC:...` 或 `*_FILE`，不保留明文。
+- 主密钥仅放系统环境变量或 root 权限文件。
+- 迁移完成后轮换一次旧 API Key/支付私钥/邮箱密码。
+
 ### 1. 启动多实例 Worker（Gunicorn）
 
 项目已提供：

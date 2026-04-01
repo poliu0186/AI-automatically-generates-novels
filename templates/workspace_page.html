@@ -49,7 +49,6 @@
             --soft-panel-3: #eef6ff;
             --soft-border: #d9e4ef;
             --soft-ink: #35516b;
-            --shadow-elevated: 0 24px 60px rgba(15, 23, 42, 0.18);
             --overlay-bg: rgba(15, 23, 42, 0.24);
             --focus-ring: 0 0 0 3px rgba(31, 111, 178, 0.12);
         }
@@ -341,6 +340,38 @@
             display: grid;
             grid-template-columns: repeat(1, minmax(0, 1fr));
             gap: 12px;
+        }
+
+        .wallet-submenu {
+            display: flex;
+            gap: 8px;
+            margin: 12px 0;
+            flex-wrap: wrap;
+        }
+
+        .wallet-submenu-btn {
+            border: 1px solid #c8d9ea;
+            border-radius: 999px;
+            background: #f3f8fd;
+            color: #365b79;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 14px;
+            cursor: pointer;
+        }
+
+        .wallet-submenu-btn.active {
+            border-color: #2f6ea3;
+            background: #2f6ea3;
+            color: #fff;
+        }
+
+        .wallet-subpane {
+            display: none;
+        }
+
+        .wallet-subpane.active {
+            display: block;
         }
 
         .export-grid {
@@ -937,6 +968,18 @@
             color: #e3edf8;
         }
 
+        html[data-theme="dark"] .wallet-submenu-btn {
+            border-color: #3f5e80;
+            background: #1d2d40;
+            color: #bfd0e0;
+        }
+
+        html[data-theme="dark"] .wallet-submenu-btn.active {
+            border-color: #5f9bd3;
+            background: #35689a;
+            color: #f4f9ff;
+        }
+
         html[data-theme="dark"] .review-export-actions {
             border-top-color: var(--soft-border);
         }
@@ -1072,12 +1115,12 @@
         }
 
         .note {
-            border-left: 4px solid #7eb2df;
-            background: #eef6ff;
+            border-left: 4px solid color-mix(in srgb, var(--brand) 70%, transparent);
+            background: var(--soft-panel-3);
             padding: 10px;
             border-radius: 8px;
             font-size: 13px;
-            color: #3f5f7b;
+            color: var(--soft-ink);
             margin-bottom: 10px;
         }
 
@@ -1110,27 +1153,23 @@
 
         .split-layout {
             display: grid;
-            grid-template-columns: 220px 1fr;
+            grid-template-columns: 1fr;
             gap: 12px;
-            min-height: 460px;
+            min-height: 0;
         }
 
         .kb-nav {
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            background: #f8fbff;
-            padding: 8px;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            padding: 0;
             display: flex;
-            flex-direction: column;
-            gap: 6px;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .kb-nav button {
-            width: 100%;
-            text-align: left;
-            border-radius: 8px;
-            background: transparent;
-            border: 1px solid transparent;
+            white-space: nowrap;
         }
 
         .kb-nav button.active {
@@ -1142,8 +1181,27 @@
         .kb-main {
             border: 1px solid var(--line);
             border-radius: 10px;
-            background: #fff;
+            background: var(--panel);
             padding: 12px;
+        }
+
+        .kb-editor-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10130;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: var(--overlay-bg);
+        }
+
+        .kb-editor-panel {
+            width: min(920px, 96vw);
+            max-height: 90vh;
+            overflow: auto;
+            margin: 0;
+            box-shadow: var(--shadow-elevated);
         }
 
         .kb-item {
@@ -1151,7 +1209,7 @@
             border-radius: 10px;
             padding: 10px;
             margin-bottom: 10px;
-            background: #fbfdff;
+            background: var(--soft-panel);
         }
 
         .kb-item-head {
@@ -1167,8 +1225,8 @@
             margin-top: 4px;
             padding: 2px 8px;
             border-radius: 999px;
-            background: #edf4fb;
-            color: #43607b;
+            background: var(--soft-panel-3);
+            color: var(--soft-ink);
             font-size: 12px;
         }
 
@@ -1783,7 +1841,6 @@
                         <p class="section-subtitle" id="kb-character-help" style="margin:8px 0 0;">若下拉为空，请先到“知识库 → 人物档案”新增条目。</p>
                     </div>
                 </div>
-                <div class="field"><label class="label" for="relationships">角色关系</label><textarea id="relationships"></textarea></div>
                 <div class="field">
                     <label class="label" for="plot">核心剧情/知识库</label>
                     <textarea id="plot"></textarea>
@@ -1807,7 +1864,22 @@
                         <p class="section-subtitle" id="kb-plot-help" style="margin:8px 0 0;">剧情线索适合写主线冲突，时间线适合写阶段推进，世界观适合写规则与限制。</p>
                     </div>
                 </div>
-                <div class="field"><label class="label" for="background">小说背景</label><textarea id="background"></textarea></div>
+                <div class="field">
+                    <label class="label" for="background">小说背景</label>
+                    <textarea id="background"></textarea>
+                    <div class="toolbar" style="margin-top:8px;">
+                        <button type="button" id="btn-template-background">插入背景模板</button>
+                        <button type="button" id="btn-clear-background">清空小说背景</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label" for="relationships">角色关系</label>
+                    <textarea id="relationships"></textarea>
+                    <div class="toolbar" style="margin-top:8px;">
+                        <button type="button" id="btn-template-relationships">插入关系模板</button>
+                        <button type="button" id="btn-clear-relationships">清空角色关系</button>
+                    </div>
+                </div>
             </div>
             <div class="status" id="status"></div>
         </div>
@@ -1817,50 +1889,68 @@
             <p class="desc">先通过支付宝充值代币，再按模型实际消耗的 Token 自动换算扣费。当前规则：1000 Token = 1 代币。</p>
             <div class="meta-hint">这版已搭好钱包、订单、流水与支付宝下单骨架。异步通知验签仍需在你的正式支付宝参数就绪后补最后一层。</div>
 
-            <div class="wallet-recharge-hero">
-                <h3 class="wallet-recharge-hero-title">支付宝充值代币</h3>
-                <p class="wallet-recharge-hero-desc">建议先充值再创作，避免因余额不足中断大模型生成或自动审核流程。</p>
-                <div class="toolbar">
-                    <input id="wallet-recharge-amount" type="number" min="10" step="1" placeholder="充值金额（元），如 50">
-                    <button class="primary" id="btn-wallet-recharge" type="button">立即创建支付宝充值订单</button>
-                    <button id="btn-wallet-refresh" type="button">刷新余额</button>
-                </div>
-                <p class="section-subtitle" id="wallet-pricing-hint" style="margin:8px 0 0;">加载计价规则中...</p>
+            <div class="wallet-submenu">
+                <button type="button" class="wallet-submenu-btn active" data-wallet-tab="recharge">余额充值</button>
+                <button type="button" class="wallet-submenu-btn" data-wallet-tab="archive">小说归档</button>
             </div>
 
-            <div class="wallet-kpi-grid">
-                <div class="wallet-kpi-card">
-                    <p class="wallet-kpi-label">可用代币</p>
-                    <p class="wallet-kpi-value" id="wallet-available">加载中...</p>
+            <div class="wallet-subpane active" id="wallet-pane-recharge">
+                <div class="wallet-recharge-hero">
+                    <h3 class="wallet-recharge-hero-title">支付宝充值代币</h3>
+                    <p class="wallet-recharge-hero-desc">建议先充值再创作，避免因余额不足中断大模型生成或自动审核流程。</p>
+                    <div class="toolbar">
+                        <input id="wallet-recharge-amount" type="number" min="10" step="1" placeholder="充值金额（元），如 50">
+                        <button class="primary" id="btn-wallet-recharge" type="button">立即创建支付宝充值订单</button>
+                        <button id="btn-wallet-refresh" type="button">刷新余额</button>
+                    </div>
+                    <p class="section-subtitle" id="wallet-pricing-hint" style="margin:8px 0 0;">加载计价规则中...</p>
                 </div>
-                <div class="wallet-kpi-card">
-                    <p class="wallet-kpi-label">累计充值</p>
-                    <p class="wallet-kpi-value" id="wallet-recharged">加载中...</p>
+
+                <div class="wallet-kpi-grid">
+                    <div class="wallet-kpi-card">
+                        <p class="wallet-kpi-label">可用代币</p>
+                        <p class="wallet-kpi-value" id="wallet-available">加载中...</p>
+                    </div>
+                    <div class="wallet-kpi-card">
+                        <p class="wallet-kpi-label">累计充值</p>
+                        <p class="wallet-kpi-value" id="wallet-recharged">加载中...</p>
+                    </div>
+                    <div class="wallet-kpi-card">
+                        <p class="wallet-kpi-label">累计消耗</p>
+                        <p class="wallet-kpi-value" id="wallet-consumed">加载中...</p>
+                    </div>
                 </div>
-                <div class="wallet-kpi-card">
-                    <p class="wallet-kpi-label">累计消耗</p>
-                    <p class="wallet-kpi-value" id="wallet-consumed">加载中...</p>
+
+                <div class="note" id="wallet-order-result" style="margin-top:10px;display:none;"></div>
+
+                <div class="wallet-feed">
+                    <div class="wallet-panel">
+                        <div class="wallet-panel-head">最近充值订单</div>
+                        <div class="wallet-list" id="wallet-recent-orders"></div>
+                        <div class="wallet-pagination" id="wallet-orders-pagination" style="display:none;"></div>
+                    </div>
+
+                    <div class="wallet-panel">
+                        <div class="wallet-panel-head">最近账单</div>
+                        <div class="wallet-list" id="wallet-recent-ledger"></div>
+                        <div class="wallet-pagination" id="wallet-ledger-pagination" style="display:none;"></div>
+                    </div>
+
+                    <div class="wallet-panel" id="wallet-usage-panel">
+                        <div class="wallet-panel-head">最近模型计费记录</div>
+                        <div class="wallet-list" id="wallet-recent-usage"></div>
+                    </div>
                 </div>
             </div>
 
-            <div class="note" id="wallet-order-result" style="margin-top:10px;display:none;"></div>
-
-            <div class="wallet-feed">
+            <div class="wallet-subpane" id="wallet-pane-archive">
                 <div class="wallet-panel">
-                    <div class="wallet-panel-head">最近充值订单</div>
-                    <div class="wallet-list" id="wallet-recent-orders"></div>
-                    <div class="wallet-pagination" id="wallet-orders-pagination" style="display:none;"></div>
-                </div>
-
-                <div class="wallet-panel">
-                    <div class="wallet-panel-head">最近账单</div>
-                    <div class="wallet-list" id="wallet-recent-ledger"></div>
-                    <div class="wallet-pagination" id="wallet-ledger-pagination" style="display:none;"></div>
-                </div>
-
-                <div class="wallet-panel" id="wallet-usage-panel">
-                    <div class="wallet-panel-head">最近模型计费记录</div>
-                    <div class="wallet-list" id="wallet-recent-usage"></div>
+                    <div class="wallet-panel-head">7天内导出小说归档</div>
+                    <div class="wallet-list">
+                        <p class="section-subtitle" style="margin:0;">仅展示最近 7 天内的导出记录，最多返回 200 条。点击“下载”可再次获取对应文件。</p>
+                    </div>
+                    <div class="wallet-list" id="wallet-export-list"></div>
+                    <div class="wallet-pagination" id="wallet-export-pagination" style="display:none;"></div>
                 </div>
             </div>
             <div class="status" id="status"></div>
@@ -2244,18 +2334,115 @@
             <div class="split-layout">
                 <div class="kb-nav" id="kb-nav"></div>
                 <div class="kb-main">
-                    <div class="field"><label class="label" for="kb-search">搜索</label><input id="kb-search" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="输入关键字筛选条目"></div>
                     <div id="kb-items"></div>
-                    <div class="card" style="margin-top:8px;">
-                        <h3 style="margin:0 0 10px;font-size:15px;">新增 / 编辑条目</h3>
-                        <div class="field"><label class="label" for="kb-title">名称</label><input id="kb-title" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;"></div>
+                    <div class="wallet-pagination" id="kb-pagination" style="display:none;margin-top:8px;"></div>
+                    <div class="toolbar" style="margin-top:8px;">
+                        <button class="primary" id="kb-open-editor" type="button">新增条目</button>
+                    </div>
+                    <div class="kb-editor-overlay" id="kb-editor-modal" style="display:none;">
+                    <div class="card kb-editor-panel" style="margin-top:8px;">
+                        <div class="section-head" style="margin:0 0 10px;">
+                            <h3 id="kb-editor-title" style="margin:0;font-size:15px;">新增 / 编辑条目</h3>
+                            <button id="kb-editor-close" type="button">关闭</button>
+                        </div>
+                        <div class="field"><label class="label" for="kb-title" id="kb-title-label">名称</label><input id="kb-title" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="请输入条目名称"></div>
                         <div class="field"><label class="label" for="kb-desc">描述</label><textarea id="kb-desc" style="min-height:110px;"></textarea></div>
-                        <div class="field"><label class="label" for="kb-tags">标签（逗号分隔）</label><input id="kb-tags" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="主线, 反派, 城市"></div>
+                        <div class="field" id="kb-template-wrap" style="display:none;">
+                            <label class="label">常用模板（仅填充描述）</label>
+                            <div class="toolbar" id="kb-template-actions"></div>
+                            <p class="section-subtitle" id="kb-template-hint" style="margin-top:8px;"></p>
+                        </div>
+                        <div class="field" id="kb-golden-wrap" style="display:none;">
+                            <label class="label">金手指（人物档案栏位）</label>
+                            <div class="meta-hint" style="margin:0 0 10px;">支持同一人物配置多个金手指，并可标注主 / 次金手指。</div>
+                            <div id="kb-gf-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+                            <div style="border:1px dashed var(--soft-border);border-radius:10px;padding:10px;background:var(--soft-panel);">
+                                <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+                                    <div class="field" style="margin:0;">
+                                        <label class="label" for="kb-gf-role">主 / 次</label>
+                                        <select id="kb-gf-role" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;">
+                                            <option value="main">主金手指</option>
+                                            <option value="secondary">次金手指</option>
+                                        </select>
+                                    </div>
+                                    <div class="field" style="margin:0;">
+                                        <label class="label" for="kb-gf-type">类型</label>
+                                        <select id="kb-gf-type" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;">
+                                            <option value="">请选择类型</option>
+                                            <option value="系统流">系统流</option>
+                                            <option value="重生 / 穿越 / 时间类">重生 / 穿越 / 时间类</option>
+                                            <option value="天赋 / 血脉 / 体质类">天赋 / 血脉 / 体质类</option>
+                                            <option value="随身空间类">随身空间类</option>
+                                            <option value="知识 / 信息差类">知识 / 信息差类</option>
+                                            <option value="道具 / 宝物类">道具 / 宝物类</option>
+                                            <option value="灵体 / 老爷爷 / 辅助类">灵体 / 老爷爷 / 辅助类</option>
+                                            <option value="技能 / 专长类">技能 / 专长类</option>
+                                            <option value="气运 / 机缘类">气运 / 机缘类</option>
+                                            <option value="吞噬 / 融合 / 召唤类">吞噬 / 融合 / 召唤类</option>
+                                            <option value="__custom__">自定义分类</option>
+                                        </select>
+                                        <input id="kb-gf-type-custom" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin-top:8px;display:none;" placeholder="输入自定义分类">
+                                    </div>
+                                </div>
+                                <div class="field" style="margin-top:8px;">
+                                    <label class="label" for="kb-gf-subtype">子类型</label>
+                                    <select id="kb-gf-subtype" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;">
+                                        <option value="">请先选择类型</option>
+                                    </select>
+                                    <input id="kb-gf-subtype-custom" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin-top:8px;display:none;" placeholder="输入自定义子类型">
+                                    <div id="kb-gf-effect-hint" class="meta-hint" style="margin-top:8px;display:none;"></div>
+                                </div>
+                                <div class="field" style="margin-top:8px;">
+                                    <label class="label" for="kb-gf-effect">效果</label>
+                                    <textarea id="kb-gf-effect" style="min-height:76px;" placeholder="选择子类型后会自动填入默认效果描述，可继续自定义"></textarea>
+                                </div>
+                                <div class="field" style="margin-bottom:8px;">
+                                    <label class="label" for="kb-gf-upgrade">升级方式</label>
+                                    <input id="kb-gf-upgrade" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="例如：完成系统任务，累积成就点">
+                                </div>
+                                <div class="toolbar" style="margin-top:8px;">
+                                    <button id="kb-gf-save" type="button">添加金手指</button>
+                                    <button id="kb-gf-reset" type="button">清空金手指输入</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field" id="kb-clue-wrap" style="display:none;">
+                            <label class="label" for="kb-clue-select">线索类型（剧情线索栏位）</label>
+                            <select id="kb-clue-select" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;">
+                                <option value="">默认 / 未设置</option>
+                                <option value="明线">明线</option>
+                                <option value="暗线">暗线</option>
+                                <option value="伏线">伏线</option>
+                                <option value="双线并进">双线并进</option>
+                                <option value="误导线">误导线</option>
+                                <option value="回收线">回收线</option>
+                                <option value="__custom__">自定义</option>
+                            </select>
+                            <input id="kb-clue-custom" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin-top:8px;display:none;" placeholder="输入自定义线索类型，例如：伪明线">
+                        </div>
+                        <div class="field" id="kb-role-wrap" style="display:none;">
+                            <label class="label" for="kb-role-select">角色定义</label>
+                            <select id="kb-role-select" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;">
+                                <option value="">请选择角色定义</option>
+                                <option value="主角">主角</option>
+                                <option value="配角">配角</option>
+                                <option value="反派">反派</option>
+                                <option value="女主">女主</option>
+                                <option value="男主">男主</option>
+                                <option value="导师">导师</option>
+                                <option value="盟友">盟友</option>
+                                <option value="家族角色">家族角色</option>
+                                <option value="路人角色">路人角色</option>
+                                <option value="__custom__">自定义</option>
+                            </select>
+                            <input id="kb-role-custom" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin-top:8px;display:none;" placeholder="输入自定义角色定义">
+                        </div>
+                        <div class="field" id="kb-tags-wrap"><label class="label" for="kb-tags">标签（逗号分隔）</label><input id="kb-tags" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="主线, 反派, 城市"></div>
                         <div class="toolbar">
-                            <button id="btn-kb-toggle-edit" type="button">启用手工编辑</button>
                             <button class="primary" id="kb-save" type="button">保存条目</button>
                             <button id="kb-reset" type="button">清空表单</button>
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -2753,10 +2940,15 @@
             const charactersEl = document.getElementById('characters');
             const relationshipsEl = document.getElementById('relationships');
             const plotEl = document.getElementById('plot');
+            const backgroundEl = document.getElementById('background');
             const kbPicker = document.getElementById('kb-character-picker');
             const kbCharacterTarget = document.getElementById('kb-character-target');
             const btnInsertCharacter = document.getElementById('btn-insert-character');
             const btnSyncAllCharacters = document.getElementById('btn-sync-all-characters');
+            const btnTemplateRelationships = document.getElementById('btn-template-relationships');
+            const btnTemplateBackground = document.getElementById('btn-template-background');
+            const btnClearRelationships = document.getElementById('btn-clear-relationships');
+            const btnClearBackground = document.getElementById('btn-clear-background');
             const btnGoKnowledgeInline = document.getElementById('btn-go-knowledge-inline');
             const kbCharacterHelp = document.getElementById('kb-character-help');
             const kbPlotSource = document.getElementById('kb-plot-source');
@@ -2767,6 +2959,22 @@
             const roleOnboardTip = document.getElementById('role-onboard-tip');
             const btnGoKnowledge = document.getElementById('btn-go-knowledge');
             const btnHideRoleTip = document.getElementById('btn-hide-role-tip');
+
+            const settingTemplates = {
+                relationships: [
+                    '【关系矩阵】',
+                    '- 主角 ↔ 关键配角：关系现状 / 利益绑定 / 关系转折点',
+                    '- 主角 ↔ 反派：表面冲突 / 深层矛盾 / 最终对决议题',
+                    '- 配角 ↔ 配角：联盟或背刺条件 / 情感牵制',
+                    '- 感情线：初始状态 / 升温节点 / 破裂与修复节点'
+                ].join('\n'),
+                background: [
+                    '【世界规则】力量体系/科技规则：\n禁止触碰的边界：',
+                    '【社会结构】主要势力与阶层：\n资源分配方式：',
+                    '【时代氛围】主流价值观：\n舆论与秩序：',
+                    '【场景锚点】高频地点A：\n高频地点B：\n地理风险与机会：'
+                ].join('\n\n')
+            };
 
             const plotCategoryMap = {
                 plotLines: '剧情线索',
@@ -2788,10 +2996,66 @@
                 return Array.isArray(list) ? list : [];
             }
 
+            function normalizeGoldenFingers(source) {
+                if (Array.isArray(source)) {
+                    return source
+                        .map((entry, index) => {
+                            if (entry && typeof entry === 'object') {
+                                const role = entry.role === 'secondary' ? 'secondary' : 'main';
+                                return {
+                                    name: String(entry.name || '').trim(),
+                                    type: String(entry.type || '').trim(),
+                                    subtype: String(entry.subtype || '').trim(),
+                                    role,
+                                    effect: String(entry.effect || '').trim(),
+                                    cost: String(entry.cost || '').trim(),
+                                    upgrade: String(entry.upgrade || '').trim(),
+                                    unlock: String(entry.unlock || '').trim(),
+                                    order: Number.isFinite(entry.order) ? entry.order : index
+                                };
+                            }
+                            const text = String(entry || '').trim();
+                            return {
+                                name: text,
+                                type: '',
+                                subtype: '',
+                                role: index === 0 ? 'main' : 'secondary',
+                                effect: '',
+                                cost: '',
+                                upgrade: '',
+                                unlock: '',
+                                order: index
+                            };
+                        })
+                        .filter((entry) => entry.name);
+                }
+
+                const text = String(source || '').trim();
+                if (!text) return [];
+                return [{
+                    name: text,
+                    type: '',
+                    subtype: '',
+                    role: 'main',
+                    effect: '',
+                    cost: '',
+                    upgrade: '',
+                    unlock: '',
+                    order: 0
+                }];
+            }
+
             function formatCharacterLine(item) {
-                const tags = (item.tags || []).filter(Boolean);
-                const roleText = tags.length ? `（标签：${tags.join(' / ')}）` : '';
-                return `- ${item.title}${roleText}${item.description ? `：${item.description}` : ''}`;
+                const role = String(item.roleType || '').trim() || ((item.tags || []).filter(Boolean)[0] || '');
+                const roleText = role ? `（角色：${role}）` : '';
+                const fingerList = normalizeGoldenFingers(item && (item.goldenFingers || item.goldenFinger));
+                const golden = fingerList.length
+                    ? `｜金手指：${fingerList.map((entry) => {
+                        const typeText = [entry.type, entry.subtype].filter(Boolean).join(' / ');
+                        return `${entry.role === 'main' ? '主' : '次'}-${entry.name}${typeText ? `(${typeText})` : ''}`;
+                    }).join('；')}`
+                    : '';
+                return `- ${item.title}${roleText}${golden}${item.description ? `：${item.description}` : ''}`;
             }
 
             function appendLine(textarea, line) {
@@ -2835,7 +3099,9 @@
                 const tags = (item.tags || []).filter(Boolean);
                 const tagText = tags.length ? `（标签：${tags.join(' / ')}）` : '';
                 const desc = item.description ? `：${item.description}` : '';
-                return `- [${categoryLabel}] ${item.title}${tagText}${desc}`;
+                const fromItem = String((item && item.clueType) || '').trim();
+                const lineTag = fromItem ? `【${fromItem}】` : '';
+                return `- ${lineTag}[${categoryLabel}] ${item.title}${tagText}${desc}`;
             }
 
             function renderPlotPicker() {
@@ -2945,6 +3211,26 @@
                 plotEl.dispatchEvent(new Event('input', { bubbles: true }));
                 const categoryLabel = plotCategoryMap[categoryKey] || '该分类';
                 setStatus(`已同步 ${lines.length} 条${categoryLabel}到核心剧情`);
+            }
+
+            function applyTemplateToTextarea(textarea, key, statusText) {
+                if (!textarea || !settingTemplates[key]) return;
+                const draft = settingTemplates[key];
+                const current = (textarea.value || '').trim();
+                textarea.value = current ? `${current}\n\n${draft}` : draft;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                setStatus(statusText);
+            }
+
+            function clearTextareaContent(textarea, statusText) {
+                if (!textarea) return;
+                if (!(textarea.value || '').trim()) {
+                    setStatus(statusText.replace('已', '原本为空，无需'));
+                    return;
+                }
+                textarea.value = '';
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                setStatus(statusText);
             }
 
             function hasDetailContent() {
@@ -3088,6 +3374,27 @@
 
             if (btnSyncPlotSource) {
                 btnSyncPlotSource.addEventListener('click', syncCurrentPlotCategory);
+            }
+
+            if (btnTemplateRelationships) {
+                btnTemplateRelationships.addEventListener('click', () => {
+                    applyTemplateToTextarea(relationshipsEl, 'relationships', '已插入角色关系模板');
+                });
+            }
+            if (btnTemplateBackground) {
+                btnTemplateBackground.addEventListener('click', () => {
+                    applyTemplateToTextarea(backgroundEl, 'background', '已插入小说背景模板');
+                });
+            }
+            if (btnClearBackground) {
+                btnClearBackground.addEventListener('click', () => {
+                    clearTextareaContent(backgroundEl, '已清空小说背景');
+                });
+            }
+            if (btnClearRelationships) {
+                btnClearRelationships.addEventListener('click', () => {
+                    clearTextareaContent(relationshipsEl, '已清空角色关系');
+                });
             }
 
             renderKnowledgeCharacterPicker();
@@ -7173,6 +7480,9 @@
         }
 
         function initWalletPage() {
+            const submenuButtons = Array.from(document.querySelectorAll('[data-wallet-tab]'));
+            const rechargePaneEl = document.getElementById('wallet-pane-recharge');
+            const archivePaneEl = document.getElementById('wallet-pane-archive');
             const availableEl = document.getElementById('wallet-available');
             const rechargedEl = document.getElementById('wallet-recharged');
             const consumedEl = document.getElementById('wallet-consumed');
@@ -7187,11 +7497,15 @@
             const ledgerPagerEl = document.getElementById('wallet-ledger-pagination');
             const usageEl = document.getElementById('wallet-recent-usage');
             const usagePanelEl = document.getElementById('wallet-usage-panel');
+            const exportListEl = document.getElementById('wallet-export-list');
+            const exportPagerEl = document.getElementById('wallet-export-pagination');
             const PAGE_SIZE = 8;
             let ordersSource = [];
             let ledgerSource = [];
+            let exportsSource = [];
             let ordersPage = 1;
             let ledgerPage = 1;
+            let exportsPage = 1;
 
             function escapeHtml(input) {
                 const value = String(input == null ? '' : input);
@@ -7380,6 +7694,34 @@
                 });
             }
 
+            function formatExportItems(list) {
+                return (list || []).map((item) => {
+                    const formatType = (item.format_type || 'txt').toLowerCase();
+                    const lengthText = Number(item.content_length || 0).toLocaleString('zh-CN');
+                    return `<div class="wallet-item">
+                        <div class="wallet-item-top">
+                            <span class="wallet-item-title">${escapeHtml(item.title || '-')}</span>
+                            <button type="button" class="wallet-page-next" data-export-id="${escapeHtml(item.id)}">下载</button>
+                        </div>
+                        <div class="wallet-item-meta">
+                            <span class="wallet-tag">格式 ${escapeHtml(formatType.toUpperCase())}</span>
+                            <span class="wallet-tag">字数 ${escapeHtml(lengthText)}</span>
+                            <span class="wallet-tag">导出时间 ${escapeHtml(toLocalText(item.created_at || ''))}</span>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            function renderExports() {
+                const pageData = paginateList(exportsSource || [], exportsPage, PAGE_SIZE);
+                exportsPage = pageData.page;
+                renderList(exportListEl, formatExportItems(pageData.sliced), '最近 7 天暂无导出文章记录');
+                renderPagination(exportPagerEl, pageData.page, pageData.totalPages, (nextPage) => {
+                    exportsPage = nextPage;
+                    renderExports();
+                });
+            }
+
             function formatLedger(list) {
                 return (list || []).map((item) => {
                     const summary = humanizeLedgerItem(item);
@@ -7448,6 +7790,49 @@
                 }
             }
 
+            async function loadExportArticles() {
+                setStatus('正在加载小说归档...');
+                try {
+                    const response = await fetch('/wallet/exported-articles?days=7');
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || '加载小说归档失败');
+
+                    exportsSource = data.items || [];
+                    exportsPage = 1;
+                    renderExports();
+                    setStatus(`小说归档已刷新：最近 7 天共 ${exportsSource.length} 条记录`);
+                } catch (error) {
+                    setStatus('加载小说归档失败：' + error.message);
+                }
+            }
+
+            function switchWalletTab(tabName) {
+                const current = tabName === 'archive' ? 'archive' : 'recharge';
+                submenuButtons.forEach((btn) => {
+                    btn.classList.toggle('active', btn.dataset.walletTab === current);
+                });
+                if (rechargePaneEl) rechargePaneEl.classList.toggle('active', current === 'recharge');
+                if (archivePaneEl) archivePaneEl.classList.toggle('active', current === 'archive');
+
+                if (current === 'archive' && !exportsSource.length) {
+                    loadExportArticles();
+                }
+            }
+
+            submenuButtons.forEach((btn) => {
+                btn.addEventListener('click', () => switchWalletTab(btn.dataset.walletTab || 'recharge'));
+            });
+
+            if (exportListEl) {
+                exportListEl.addEventListener('click', (event) => {
+                    const target = event.target.closest('[data-export-id]');
+                    if (!target) return;
+                    const exportId = String(target.getAttribute('data-export-id') || '').trim();
+                    if (!exportId) return;
+                    window.location.href = `/wallet/exported-articles/${encodeURIComponent(exportId)}/download`;
+                });
+            }
+
             btnRefresh.addEventListener('click', loadSummary);
             btnRecharge.addEventListener('click', async () => {
                 const raw = (amountEl.value || '').trim();
@@ -7482,14 +7867,15 @@
             });
 
             loadSummary();
+            switchWalletTab('recharge');
         }
 
         function initKnowledgePage() {
             const categories = [
                 { key: 'characters', label: '人物档案' },
+                { key: 'plotLines', label: '剧情线索' },
                 { key: 'worldSettings', label: '世界观' },
                 { key: 'timeline', label: '时间线' },
-                { key: 'plotLines', label: '剧情线索' },
                 { key: 'locations', label: '地点空间' }
             ];
 
@@ -7504,15 +7890,648 @@
 
             let current = categories[0].key;
             let editIndex = -1;
+            let page = 1;
+            const PAGE_SIZE = 8;
 
             const nav = document.getElementById('kb-nav');
             const itemsEl = document.getElementById('kb-items');
-            const searchEl = document.getElementById('kb-search');
+            const pagerEl = document.getElementById('kb-pagination');
+            const openEditorBtn = document.getElementById('kb-open-editor');
+            const editorModalEl = document.getElementById('kb-editor-modal');
+            const editorTitleEl = document.getElementById('kb-editor-title');
+            const editorCloseBtn = document.getElementById('kb-editor-close');
+            const titleLabelEl = document.getElementById('kb-title-label');
             const titleEl = document.getElementById('kb-title');
             const descEl = document.getElementById('kb-desc');
+            const goldenWrapEl = document.getElementById('kb-golden-wrap');
+            const goldenListEl = document.getElementById('kb-gf-list');
+            const gfRoleEl = document.getElementById('kb-gf-role');
+            const gfTypeEl = document.getElementById('kb-gf-type');
+            const gfTypeCustomEl = document.getElementById('kb-gf-type-custom');
+            const gfSubtypeEl = document.getElementById('kb-gf-subtype');
+            const gfSubtypeCustomEl = document.getElementById('kb-gf-subtype-custom');
+            const gfEffectEl = document.getElementById('kb-gf-effect');
+            const gfEffectHintEl = document.getElementById('kb-gf-effect-hint');
+            const gfUpgradeEl = document.getElementById('kb-gf-upgrade');
+            const gfSaveBtn = document.getElementById('kb-gf-save');
+            const gfResetBtn = document.getElementById('kb-gf-reset');
+            const clueWrapEl = document.getElementById('kb-clue-wrap');
+            const clueSelectEl = document.getElementById('kb-clue-select');
+            const clueCustomEl = document.getElementById('kb-clue-custom');
+            const roleWrapEl = document.getElementById('kb-role-wrap');
+            const roleSelectEl = document.getElementById('kb-role-select');
+            const roleCustomEl = document.getElementById('kb-role-custom');
+            const templateWrapEl = document.getElementById('kb-template-wrap');
+            const templateActionsEl = document.getElementById('kb-template-actions');
+            const templateHintEl = document.getElementById('kb-template-hint');
+            const tagsWrapEl = document.getElementById('kb-tags-wrap');
             const tagsEl = document.getElementById('kb-tags');
             const saveBtn = document.getElementById('kb-save');
             const resetBtn = document.getElementById('kb-reset');
+            let goldenFingerDraft = [];
+            let goldenEditIndex = -1;
+            let lastAutoEffect = '';
+
+            function normalizeGoldenFingers(source) {
+                if (Array.isArray(source)) {
+                    return source
+                        .map((entry, index) => {
+                            if (entry && typeof entry === 'object') {
+                                return {
+                                    name: String(entry.name || '').trim(),
+                                    type: String(entry.type || '').trim(),
+                                    subtype: String(entry.subtype || '').trim(),
+                                    role: entry.role === 'secondary' ? 'secondary' : 'main',
+                                    effect: String(entry.effect || '').trim(),
+                                    upgrade: String(entry.upgrade || '').trim(),
+                                    order: Number.isFinite(entry.order) ? entry.order : index
+                                };
+                            }
+                            const text = String(entry || '').trim();
+                            return {
+                                name: text,
+                                type: '',
+                                subtype: '',
+                                role: index === 0 ? 'main' : 'secondary',
+                                effect: '',
+                                upgrade: '',
+                                order: index
+                            };
+                        })
+                        .filter((entry) => entry.name);
+                }
+
+                const text = String(source || '').trim();
+                if (!text) return [];
+                return [{
+                    name: text,
+                    type: '',
+                    subtype: '',
+                    role: 'main',
+                    effect: '',
+                    upgrade: '',
+                    order: 0
+                }];
+            }
+
+            const goldenFingerCatalog = {
+                '系统流': [
+                    { name: '任务系统', effect: '发布主线 / 支线任务，完成给奖励、技能、属性点。' },
+                    { name: '升级系统', effect: '打怪、修炼、做事就能升级，属性面板化。' },
+                    { name: '兑换系统', effect: '用积分 / 点数兑换功法、装备、丹药、技能。' },
+                    { name: '经营 / 养成系统', effect: '开店、宗门经营、养成角色 / 城池。' },
+                    { name: '签到 / 打卡系统', effect: '每日签到、地点签到，随机给奖励。' },
+                    { name: '惩罚 / 强制系统', effect: '不做任务就惩罚，倒逼主角行动。' }
+                ],
+                '重生 / 穿越 / 时间类': [
+                    { name: '重生', effect: '回到少年 / 青年时代，带着未来记忆翻盘。' },
+                    { name: '穿越', effect: '现代人穿古代 / 异世界，用现代知识降维打击。' },
+                    { name: '预知未来', effect: '能看到短期 / 长期剧情走向。' },
+                    { name: '时间回溯 / 读档', effect: '做错事可以重来，无限试错。' }
+                ],
+                '天赋 / 血脉 / 体质类': [
+                    { name: '逆天血脉', effect: '神龙、凤凰、上古神兽、神族血脉。' },
+                    { name: '特殊体质', effect: '先天道体、万法不侵、吞噬体质、纯阳 / 纯阴体。' },
+                    { name: '超强悟性', effect: '看一遍就会、修炼速度百倍、无师自通。' },
+                    { name: '特殊感知', effect: '看破弱点、透视、读心、感知宝物。' }
+                ],
+                '随身空间类': [
+                    { name: '储物空间', effect: '无限装东西，不占负重。' },
+                    { name: '灵田空间', effect: '里面可以种药、养殖，时间流速更快。' },
+                    { name: '修炼秘境', effect: '里面灵气浓郁 / 时间加速，快速升级。' }
+                ],
+                '知识 / 信息差类': [
+                    { name: '现代知识碾压', effect: '历史、科技、商业、医学、化学知识用到古代 / 异世界。' },
+                    { name: '全知记忆', effect: '记得所有功法、剧情、秘闻。' },
+                    { name: '看破信息', effect: '能看到别人属性、好感度、弱点、谎言。' }
+                ],
+                '道具 / 宝物类': [
+                    { name: '万能神器', effect: '戒指、玉佩、长剑、古书自带功能。' },
+                    { name: '无限资源', effect: '无限丹药、灵石、粮食、图纸。' },
+                    { name: '特殊物品', effect: '能许愿、能复活、能瞬移、能破局。' }
+                ],
+                '灵体 / 老爷爷 / 辅助类': [
+                    { name: '随身老爷爷', effect: '灵魂体师尊 / 前辈，教功法、指路、挡灾。' },
+                    { name: '器灵 / 宠物', effect: '法宝成精、神兽幼崽，全程辅助。' },
+                    { name: '分身 / 傀儡', effect: '多个自己同时做事、战斗。' }
+                ],
+                '技能 / 专长类': [
+                    { name: '神级职业', effect: '神级医术、毒术、厨艺、炼器、阵法、黑客。' },
+                    { name: '满级技能', effect: '开局某项技能直接拉满。' },
+                    { name: '复制 / 偷学', effect: '看别人用一次就能学会。' }
+                ],
+                '气运 / 机缘类': [
+                    { name: '气运之子', effect: '走路捡宝、遇险逢生、美女主动贴、敌人送人头。' },
+                    { name: '幸运 MAX', effect: '抽奖必中、赌博必赢、概率类全部触发。' },
+                    { name: '吸引机缘', effect: '秘境、传承、天材地宝自动找上门。' }
+                ],
+                '吞噬 / 融合 / 召唤类': [
+                    { name: '吞噬万物', effect: '吞妖兽、吞法宝、吞能量变强。' },
+                    { name: '融合进化', effect: '融合功法、血脉、物品，产生新能力。' },
+                    { name: '召唤系统', effect: '召唤历史人物、动漫角色、神兽作战。' }
+                ]
+            };
+
+            const categoryTemplates = {
+                characters: {
+                    hint: '人物档案模板会同时填充“名称、描述、标签、多金手指”栏位；按钮已标注主金手指。',
+                    items: [
+                        {
+                            name: '主角成长型',
+                            payload: {
+                                title: '主角（成长型）',
+                                description: '身份定位：底层逆袭者\n核心目标：改变命运与守护重要之人\n成长弧线：被动求生 -> 主动布局 -> 承担代价',
+                                tags: ['主角', '成长'],
+                                goldenFingers: [
+                                    {
+                                        name: '成长任务系统',
+                                        role: 'main',
+                                        type: '系统流',
+                                        subtype: '任务系统',
+                                        effect: '发布阶段任务并提供即时奖励，能将成长目标量化。',
+                                        cost: '任务失败会扣除当前阶段资源。',
+                                        upgrade: '完成主线节点，提升系统权限。',
+                                        unlock: '穿越后首次生死危机触发。'
+                                    },
+                                    {
+                                        name: '记忆回溯片段',
+                                        role: 'secondary',
+                                        type: '重生 / 穿越 / 时间类',
+                                        subtype: '时间回溯 / 读档',
+                                        effect: '在关键抉择前闪回上一世片段，辅助判断。',
+                                        cost: '每天最多触发 3 次，超限会头痛失眠。',
+                                        upgrade: '通过修复历史遗憾增加可见信息。',
+                                        unlock: '完成第一卷终局后激活。'
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            name: '高压反派型',
+                            payload: {
+                                title: '反派（高压型）',
+                                description: '立场动机：维护既得秩序\n压迫方式：资源封锁 + 舆论操控\n崩塌点：核心盟友背叛',
+                                tags: ['反派', '压迫'],
+                                goldenFingers: []
+                            }
+                        },
+                        {
+                            name: '导师引路型',
+                            payload: {
+                                title: '导师（引路型）',
+                                description: '关系定位：阶段导师\n作用：提供关键认知与规则边界\n隐藏秘密：与终局矛盾存在历史关联',
+                                tags: ['导师', '伏笔'],
+                                goldenFingers: [
+                                    {
+                                        name: '器灵共鸣',
+                                        role: 'main',
+                                        type: '灵体 / 老爷爷 / 辅助类',
+                                        subtype: '器灵 / 宠物',
+                                        effect: '可短时共享导师的战斗经验和感知能力。',
+                                        cost: '共鸣后会进入虚弱期，无法连续使用。',
+                                        upgrade: '修复器灵残缺记忆提升共鸣时长。',
+                                        unlock: '获得传承器物并完成认主仪式。'
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                plotLines: {
+                    hint: '剧情线索模板会同时填充“名称、描述、标签、线索类型”栏位；按钮已标注对应线索类型。',
+                    items: [
+                        {
+                            name: '主目标推进线',
+                            payload: {
+                                title: '主目标推进线',
+                                description: '主角每卷必须完成一个阶段目标；每次推进都会引出更高层敌对势力。',
+                                tags: ['主线', '升级'],
+                                clueType: '明线'
+                            }
+                        },
+                        {
+                            name: '身份真相线',
+                            payload: {
+                                title: '身份真相线',
+                                description: '通过碎片证据逐步揭示主角真实身份，前中期制造误导，后期完成真相回收。',
+                                tags: ['真相', '反转'],
+                                clueType: '暗线'
+                            }
+                        },
+                        {
+                            name: '伏笔回收线',
+                            payload: {
+                                title: '伏笔回收线',
+                                description: '前期看似无关的小事件在中后期转化为关键破局点，推动终局逆转。',
+                                tags: ['伏笔', '回收'],
+                                clueType: '伏线'
+                            }
+                        }
+                    ]
+                }
+            };
+
+            function normalizeGoldenFingerRecord(entry, index = 0) {
+                if (entry && typeof entry === 'object') {
+                    const subtypeText = String(entry.subtype || '').trim();
+                    const typeText = String(entry.type || '').trim();
+                    const nameText = String(entry.name || '').trim() || subtypeText || typeText;
+                    return {
+                        name: nameText,
+                        type: typeText,
+                        subtype: subtypeText,
+                        role: entry.role === 'secondary' ? 'secondary' : 'main',
+                        effect: String(entry.effect || '').trim(),
+                        upgrade: String(entry.upgrade || '').trim(),
+                        order: Number.isFinite(entry.order) ? entry.order : index
+                    };
+                }
+                const text = String(entry || '').trim();
+                return {
+                    name: text,
+                    type: '',
+                    subtype: '',
+                    role: index === 0 ? 'main' : 'secondary',
+                    effect: '',
+                    upgrade: '',
+                    order: index
+                };
+            }
+
+            function getGoldenFingerListFromItem(item) {
+                return normalizeGoldenFingers(item && (item.goldenFingers || item.goldenFinger)).map((entry, index) => normalizeGoldenFingerRecord(entry, index));
+            }
+
+            function summarizeGoldenFingers(list) {
+                return (list || []).map((entry) => {
+                    const typeText = [entry.type, entry.subtype].filter(Boolean).join(' / ');
+                    const label = entry.subtype || entry.name || entry.type || '未命名';
+                    return `${entry.role === 'main' ? '主' : '次'}-${label}${typeText ? `(${typeText})` : ''}`;
+                });
+            }
+
+            function getTypeText() {
+                if (!gfTypeEl) return '';
+                if (gfTypeEl.value === '__custom__') {
+                    return (gfTypeCustomEl && gfTypeCustomEl.value ? gfTypeCustomEl.value.trim() : '');
+                }
+                return (gfTypeEl.value || '').trim();
+            }
+
+            function setTypeValue(typeValue) {
+                if (!gfTypeEl) return;
+                const safe = String(typeValue || '').trim();
+                const options = Array.from(gfTypeEl.options || []).map((opt) => opt.value);
+                if (safe && options.includes(safe)) {
+                    gfTypeEl.value = safe;
+                    if (gfTypeCustomEl) {
+                        gfTypeCustomEl.style.display = 'none';
+                        gfTypeCustomEl.value = '';
+                    }
+                    return;
+                }
+                if (safe) {
+                    gfTypeEl.value = '__custom__';
+                    if (gfTypeCustomEl) {
+                        gfTypeCustomEl.style.display = 'block';
+                        gfTypeCustomEl.value = safe;
+                    }
+                    return;
+                }
+                gfTypeEl.value = '';
+                if (gfTypeCustomEl) {
+                    gfTypeCustomEl.style.display = 'none';
+                    gfTypeCustomEl.value = '';
+                }
+            }
+
+            function getSubtypeText() {
+                if (!gfSubtypeEl) return '';
+                if (gfSubtypeEl.value === '__custom__') {
+                    return (gfSubtypeCustomEl && gfSubtypeCustomEl.value ? gfSubtypeCustomEl.value.trim() : '');
+                }
+                return (gfSubtypeEl.value || '').trim();
+            }
+
+            function normalizeTypeKey(value) {
+                return String(value || '')
+                    .trim()
+                    .replace(/\s+/g, '')
+                    .replace(/[\/／]/g, '')
+                    .replace(/类/g, '');
+            }
+
+            function getCatalogEntriesByType(type) {
+                const safeType = String(type || '').trim();
+                if (!safeType) return [];
+                if (Array.isArray(goldenFingerCatalog[safeType])) {
+                    return goldenFingerCatalog[safeType];
+                }
+
+                const target = normalizeTypeKey(safeType);
+                const matchedKey = Object.keys(goldenFingerCatalog).find((key) => normalizeTypeKey(key) === target);
+                if (matchedKey && Array.isArray(goldenFingerCatalog[matchedKey])) {
+                    return goldenFingerCatalog[matchedKey];
+                }
+
+                return [];
+            }
+
+            function findDefaultEffect(type, subtype) {
+                const list = getCatalogEntriesByType(type);
+                const target = list.find((item) => item.name === subtype);
+                return target ? String(target.effect || '').trim() : '';
+            }
+
+            function renderSubtypeOptions(type, presetSubtype = '') {
+                if (!gfSubtypeEl) return;
+                const options = getCatalogEntriesByType(type);
+                gfSubtypeEl.innerHTML = '';
+                const first = document.createElement('option');
+                first.value = '';
+                first.textContent = !type ? '请先选择类型' : (options.length ? '请选择子类型' : '该分类暂无预设子类型');
+                gfSubtypeEl.appendChild(first);
+
+                options.forEach((item) => {
+                    const opt = document.createElement('option');
+                    opt.value = item.name;
+                    opt.textContent = item.name;
+                    gfSubtypeEl.appendChild(opt);
+                });
+
+                const customOpt = document.createElement('option');
+                customOpt.value = '__custom__';
+                customOpt.textContent = '自定义子类型';
+                gfSubtypeEl.appendChild(customOpt);
+
+                const target = String(presetSubtype || '').trim();
+                if (target) {
+                    const exists = options.some((item) => item.name === target);
+                    gfSubtypeEl.value = exists ? target : '__custom__';
+                    if (gfSubtypeCustomEl) {
+                        gfSubtypeCustomEl.style.display = exists ? 'none' : 'block';
+                        gfSubtypeCustomEl.value = exists ? '' : target;
+                    }
+                } else {
+                    gfSubtypeEl.value = '';
+                    if (gfSubtypeCustomEl) {
+                        gfSubtypeCustomEl.style.display = 'none';
+                        gfSubtypeCustomEl.value = '';
+                    }
+                }
+
+                if (gfEffectHintEl) {
+                    gfEffectHintEl.style.display = 'none';
+                    gfEffectHintEl.textContent = '';
+                }
+            }
+
+            function applySubtypeDefaultEffect(force = false) {
+                const type = getTypeText();
+                const subtype = getSubtypeText();
+                const defaultEffect = findDefaultEffect(type, subtype);
+                if (gfEffectHintEl) {
+                    if (defaultEffect) {
+                        gfEffectHintEl.style.display = 'block';
+                        gfEffectHintEl.textContent = `默认效果：${defaultEffect}`;
+                    } else {
+                        gfEffectHintEl.style.display = 'none';
+                        gfEffectHintEl.textContent = '';
+                    }
+                }
+
+                if (!gfEffectEl || !defaultEffect) return;
+                const current = (gfEffectEl.value || '').trim();
+                if (force || !current || current === lastAutoEffect) {
+                    gfEffectEl.value = defaultEffect;
+                    lastAutoEffect = defaultEffect;
+                }
+            }
+
+            function clearGoldenFingerEditor() {
+                if (gfRoleEl) gfRoleEl.value = 'main';
+                setTypeValue('');
+                renderSubtypeOptions('', '');
+                if (gfEffectEl) gfEffectEl.value = '';
+                if (gfUpgradeEl) gfUpgradeEl.value = '';
+                lastAutoEffect = '';
+                goldenEditIndex = -1;
+                if (gfSaveBtn) gfSaveBtn.textContent = '添加金手指';
+            }
+
+            function fillGoldenFingerEditor(entry) {
+                const safe = normalizeGoldenFingerRecord(entry);
+                if (gfRoleEl) gfRoleEl.value = safe.role === 'secondary' ? 'secondary' : 'main';
+                setTypeValue(safe.type || '');
+                renderSubtypeOptions(safe.type || '', safe.subtype || '');
+                if (gfEffectEl) gfEffectEl.value = safe.effect || '';
+                if (gfUpgradeEl) gfUpgradeEl.value = safe.upgrade || '';
+                const def = findDefaultEffect(safe.type || '', safe.subtype || '');
+                lastAutoEffect = def || '';
+                applySubtypeDefaultEffect(false);
+            }
+
+            function setGoldenFingerDraft(list) {
+                goldenFingerDraft = (list || []).map((entry, index) => normalizeGoldenFingerRecord(entry, index)).filter((entry) => entry.name);
+                if (goldenFingerDraft.length && !goldenFingerDraft.some((entry) => entry.role === 'main')) {
+                    goldenFingerDraft[0].role = 'main';
+                }
+                renderGoldenFingerDraft();
+            }
+
+            function renderGoldenFingerDraft() {
+                if (!goldenListEl) return;
+                if (!goldenFingerDraft.length) {
+                    goldenListEl.innerHTML = '<div class="note">当前人物还没有添加金手指。</div>';
+                    return;
+                }
+
+                goldenListEl.innerHTML = '';
+                goldenFingerDraft.forEach((entry, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'kb-item';
+                    const effectLine = entry.effect ? `<div style="margin-top:6px;">效果：${escapeHtml(entry.effect)}</div>` : '';
+                    const upgradeLine = entry.upgrade ? `<div style="margin-top:4px;">升级方式：${escapeHtml(entry.upgrade)}</div>` : '';
+                    div.innerHTML = `
+                        <div class="kb-item-head">
+                            <strong>${escapeHtml(entry.subtype || entry.name || entry.type || '金手指')}</strong>
+                            <div class="toolbar">
+                                <button type="button" class="kb-gf-edit" data-gf-index="${index}">编辑</button>
+                                <button type="button" class="danger kb-gf-delete" data-gf-index="${index}">删除</button>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="wallet-tag">${entry.role === 'main' ? '主金手指' : '次金手指'}</span>
+                            ${entry.type ? `<span class="wallet-tag">类型：${escapeHtml(entry.type)}</span>` : ''}
+                            ${entry.subtype ? `<span class="wallet-tag">子类型：${escapeHtml(entry.subtype)}</span>` : ''}
+                        </div>
+                        ${effectLine}
+                        ${upgradeLine}
+                    `;
+                    goldenListEl.appendChild(div);
+                });
+            }
+
+            function readGoldenFingerEditor() {
+                const subtypeText = getSubtypeText();
+                const typeText = getTypeText();
+                const payload = {
+                    name: subtypeText || typeText,
+                    role: (gfRoleEl && gfRoleEl.value === 'secondary') ? 'secondary' : 'main',
+                    type: typeText,
+                    subtype: subtypeText,
+                    effect: (gfEffectEl && gfEffectEl.value ? gfEffectEl.value.trim() : ''),
+                    upgrade: (gfUpgradeEl && gfUpgradeEl.value ? gfUpgradeEl.value.trim() : '')
+                };
+                return normalizeGoldenFingerRecord(payload);
+            }
+
+            function upsertGoldenFinger() {
+                const payload = readGoldenFingerEditor();
+                if (!payload.type && !payload.subtype) {
+                    setStatus('请先选择金手指分类或子类型');
+                    return;
+                }
+
+                if (goldenEditIndex >= 0) {
+                    goldenFingerDraft[goldenEditIndex] = payload;
+                } else {
+                    goldenFingerDraft.push(payload);
+                }
+
+                if (payload.role === 'main') {
+                    goldenFingerDraft = goldenFingerDraft.map((entry, index) => {
+                        if (index === (goldenEditIndex >= 0 ? goldenEditIndex : goldenFingerDraft.length - 1)) return entry;
+                        return { ...entry, role: 'secondary' };
+                    });
+                } else if (!goldenFingerDraft.some((entry) => entry.role === 'main')) {
+                    goldenFingerDraft[0].role = 'main';
+                }
+
+                clearGoldenFingerEditor();
+                renderGoldenFingerDraft();
+                setStatus('金手指条目已更新');
+            }
+
+            function getClueTypeValue() {
+                if (!clueSelectEl) return '';
+                if (clueSelectEl.value === '__custom__') {
+                    return (clueCustomEl && clueCustomEl.value ? clueCustomEl.value.trim() : '');
+                }
+                return (clueSelectEl.value || '').trim();
+            }
+
+            function setClueTypeValue(value) {
+                if (!clueSelectEl) return;
+                const safe = String(value || '').trim();
+                const options = Array.from(clueSelectEl.options).map((item) => item.value);
+                if (safe && options.includes(safe)) {
+                    clueSelectEl.value = safe;
+                    if (clueCustomEl) {
+                        clueCustomEl.style.display = 'none';
+                        clueCustomEl.value = '';
+                    }
+                    return;
+                }
+                if (safe) {
+                    clueSelectEl.value = '__custom__';
+                    if (clueCustomEl) {
+                        clueCustomEl.style.display = 'block';
+                        clueCustomEl.value = safe;
+                    }
+                    return;
+                }
+                clueSelectEl.value = '';
+                if (clueCustomEl) {
+                    clueCustomEl.style.display = 'none';
+                    clueCustomEl.value = '';
+                }
+            }
+
+            function getRoleTypeValue() {
+                if (!roleSelectEl) return '';
+                if (roleSelectEl.value === '__custom__') {
+                    return (roleCustomEl && roleCustomEl.value ? roleCustomEl.value.trim() : '');
+                }
+                return (roleSelectEl.value || '').trim();
+            }
+
+            function setRoleTypeValue(value) {
+                if (!roleSelectEl) return;
+                const safe = String(value || '').trim();
+                const options = Array.from(roleSelectEl.options).map((item) => item.value);
+                if (safe && options.includes(safe)) {
+                    roleSelectEl.value = safe;
+                    if (roleCustomEl) {
+                        roleCustomEl.style.display = 'none';
+                        roleCustomEl.value = '';
+                    }
+                    return;
+                }
+                if (safe) {
+                    roleSelectEl.value = '__custom__';
+                    if (roleCustomEl) {
+                        roleCustomEl.style.display = 'block';
+                        roleCustomEl.value = safe;
+                    }
+                    return;
+                }
+                roleSelectEl.value = '';
+                if (roleCustomEl) {
+                    roleCustomEl.style.display = 'none';
+                    roleCustomEl.value = '';
+                }
+            }
+
+            function renderCategoryExtras() {
+                const isCharacter = current === 'characters';
+                const isPlotLine = current === 'plotLines';
+                if (goldenWrapEl) goldenWrapEl.style.display = isCharacter ? '' : 'none';
+                if (clueWrapEl) clueWrapEl.style.display = isPlotLine ? '' : 'none';
+                if (roleWrapEl) roleWrapEl.style.display = isCharacter ? '' : 'none';
+                if (tagsWrapEl) tagsWrapEl.style.display = isCharacter ? 'none' : '';
+
+                if (titleLabelEl && titleEl) {
+                    if (isCharacter) {
+                        titleLabelEl.textContent = '人物名称';
+                        titleEl.placeholder = '请输入人物名称（例如：林夜）';
+                    } else if (isPlotLine) {
+                        titleLabelEl.textContent = '线索名称';
+                        titleEl.placeholder = '请输入线索名称（例如：身份真相线）';
+                    } else {
+                        titleLabelEl.textContent = '名称';
+                        titleEl.placeholder = '请输入条目名称';
+                    }
+                }
+            }
+
+            function applyTemplatePayload(payload) {
+                if (!payload) return;
+                descEl.value = payload.description || '';
+                setStatus('模板已填充到描述，可按需继续修改');
+            }
+
+            function renderTemplateActions() {
+                if (!templateWrapEl || !templateActionsEl || !templateHintEl) return;
+                const config = categoryTemplates[current];
+                if (!config || !Array.isArray(config.items) || !config.items.length) {
+                    templateWrapEl.style.display = 'none';
+                    templateActionsEl.innerHTML = '';
+                    templateHintEl.textContent = '';
+                    return;
+                }
+
+                templateWrapEl.style.display = '';
+                templateHintEl.textContent = config.hint || '';
+                templateActionsEl.innerHTML = '';
+                config.items.forEach((item) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = item.name || '应用模板';
+                    btn.addEventListener('click', () => applyTemplatePayload(item.payload));
+                    templateActionsEl.appendChild(btn);
+                });
+            }
 
             function dataToText() {
                 const lines = [];
@@ -7520,6 +8539,18 @@
                     lines.push(`## ${cat.label}`);
                     (data[cat.key] || []).forEach((item) => {
                         lines.push(`- ${item.title}: ${item.description || ''}`);
+                        if (cat.key === 'characters') {
+                            const roleType = String(item.roleType || '').trim() || ((item.tags || []).filter(Boolean)[0] || '');
+                            if (roleType) lines.push(`  角色定义: ${roleType}`);
+                        }
+                        const fingerList = getGoldenFingerListFromItem(item);
+                        fingerList.forEach((entry) => {
+                            const typeText = [entry.type, entry.subtype].filter(Boolean).join(' / ');
+                            lines.push(`  金手指[${entry.role === 'main' ? '主' : '次'}]: ${entry.name}${typeText ? `（${typeText}）` : ''}`);
+                            if (entry.effect) lines.push(`    效果: ${entry.effect}`);
+                            if (entry.upgrade) lines.push(`    升级方式: ${entry.upgrade}`);
+                        });
+                        if (item.clueType) lines.push(`  线索类型: ${item.clueType}`);
                         if (item.tags && item.tags.length) lines.push(`  tags: ${item.tags.join(', ')}`);
                     });
                     lines.push('');
@@ -7536,12 +8567,17 @@
                 categories.forEach((cat) => {
                     const btn = document.createElement('button');
                     btn.type = 'button';
+                    btn.className = 'wallet-submenu-btn';
                     btn.textContent = `${cat.label} (${(data[cat.key] || []).length})`;
                     btn.classList.toggle('active', cat.key === current);
                     btn.addEventListener('click', () => {
                         current = cat.key;
                         editIndex = -1;
+                        page = 1;
+                        closeEditor();
                         clearForm();
+                        renderCategoryExtras();
+                        renderTemplateActions();
                         renderNav();
                         renderItems();
                     });
@@ -7549,21 +8585,81 @@
                 });
             }
 
-            function renderItems() {
-                const q = (searchEl.value || '').trim().toLowerCase();
-                const list = (data[current] || []).filter((item) => {
-                    if (!q) return true;
-                    return (`${item.title} ${item.description} ${(item.tags || []).join(' ')}`).toLowerCase().includes(q);
-                });
+            function openEditor(mode = 'create') {
+                if (!editorModalEl) return;
+                editorModalEl.style.display = 'flex';
+                if (editorTitleEl) editorTitleEl.textContent = mode === 'edit' ? '编辑条目' : '新增条目';
+            }
 
-                itemsEl.innerHTML = '';
-                if (!list.length) {
-                    itemsEl.innerHTML = '<div class="note">当前分类暂无条目。</div>';
+            function closeEditor() {
+                if (!editorModalEl) return;
+                editorModalEl.style.display = 'none';
+            }
+
+            function paginateList(list, currentPage) {
+                const total = Array.isArray(list) ? list.length : 0;
+                const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+                const safePage = Math.min(Math.max(1, currentPage), totalPages);
+                const start = (safePage - 1) * PAGE_SIZE;
+                const end = start + PAGE_SIZE;
+                return {
+                    total,
+                    page: safePage,
+                    totalPages,
+                    sliced: (list || []).slice(start, end)
+                };
+            }
+
+            function renderPager(currentPage, totalPages) {
+                if (!pagerEl) return;
+                if (totalPages <= 1) {
+                    pagerEl.style.display = 'none';
+                    pagerEl.innerHTML = '';
                     return;
                 }
 
-                list.forEach((item, index) => {
+                pagerEl.style.display = 'flex';
+                pagerEl.innerHTML = `
+                    <button type="button" class="kb-page-prev">上一页</button>
+                    <span class="page-text">第 ${currentPage} / ${totalPages} 页</span>
+                    <button type="button" class="kb-page-next">下一页</button>
+                `;
+
+                const prevBtn = pagerEl.querySelector('.kb-page-prev');
+                const nextBtn = pagerEl.querySelector('.kb-page-next');
+                if (prevBtn) {
+                    prevBtn.disabled = currentPage <= 1;
+                    prevBtn.addEventListener('click', () => {
+                        page = Math.max(1, currentPage - 1);
+                        renderItems();
+                    });
+                }
+                if (nextBtn) {
+                    nextBtn.disabled = currentPage >= totalPages;
+                    nextBtn.addEventListener('click', () => {
+                        page = Math.min(totalPages, currentPage + 1);
+                        renderItems();
+                    });
+                }
+            }
+
+            function renderItems() {
+                const list = (data[current] || []);
+                const pageData = paginateList(list, page);
+                page = pageData.page;
+
+                itemsEl.innerHTML = '';
+                if (!pageData.total) {
+                    itemsEl.innerHTML = '<div class="note">当前分类暂无条目。</div>';
+                    renderPager(1, 1);
+                    return;
+                }
+
+                pageData.sliced.forEach((item) => {
                     const realIndex = (data[current] || []).indexOf(item);
+                    const fingerList = getGoldenFingerListFromItem(item);
+                    const fingerSummary = summarizeGoldenFingers(fingerList);
+                    const roleType = String(item.roleType || '').trim() || ((item.tags || []).filter(Boolean)[0] || '');
                     const div = document.createElement('div');
                     div.className = 'kb-item';
                     div.innerHTML = `
@@ -7575,20 +8671,34 @@
                             </div>
                         </div>
                         <div>${item.description || ''}</div>
-                        <div>${(item.tags || []).map((t) => `<span class="kb-tag">${t}</span>`).join('')}</div>
+                        ${current === 'characters' && roleType ? `<div><span class="wallet-tag">角色定义：${escapeHtml(roleType)}</span></div>` : ''}
+                        ${fingerSummary.length ? `<div><span class="wallet-tag">金手指：${escapeHtml(fingerSummary.join('；'))}</span></div>` : ''}
+                        ${item.clueType ? `<div><span class="wallet-tag">线索类型：${escapeHtml(item.clueType)}</span></div>` : ''}
+                        ${current !== 'characters' ? `<div>${(item.tags || []).map((t) => `<span class="kb-tag">${t}</span>`).join('')}</div>` : ''}
                     `;
 
                     div.querySelector('.kb-edit').addEventListener('click', () => {
                         editIndex = realIndex;
                         titleEl.value = item.title || '';
                         descEl.value = item.description || '';
+                        setGoldenFingerDraft(getGoldenFingerListFromItem(item));
+                        clearGoldenFingerEditor();
+                        setClueTypeValue(item.clueType || '');
+                        setRoleTypeValue(item.roleType || ((item.tags || []).filter(Boolean)[0] || ''));
                         tagsEl.value = (item.tags || []).join(', ');
+                        openEditor('edit');
                         setStatus('已加载条目，可编辑后保存');
                     });
 
                     div.querySelector('.kb-delete').addEventListener('click', () => {
                         data[current].splice(realIndex, 1);
+                        if (editIndex === realIndex) {
+                            clearForm();
+                        }
                         persist();
+                        const totalAfterDelete = (data[current] || []).length;
+                        const maxPage = Math.max(1, Math.ceil(totalAfterDelete / PAGE_SIZE));
+                        page = Math.min(page, maxPage);
                         renderNav();
                         renderItems();
                         setStatus('条目已删除');
@@ -7596,11 +8706,17 @@
 
                     itemsEl.appendChild(div);
                 });
+
+                renderPager(pageData.page, pageData.totalPages);
             }
 
             function clearForm() {
                 titleEl.value = '';
                 descEl.value = '';
+                setGoldenFingerDraft([]);
+                clearGoldenFingerEditor();
+                setClueTypeValue('');
+                setRoleTypeValue('');
                 tagsEl.value = '';
                 editIndex = -1;
             }
@@ -7615,19 +8731,142 @@
                 }
 
                 const payload = { title, description, tags };
+                if (current === 'characters') {
+                    const roleType = getRoleTypeValue();
+                    payload.roleType = roleType;
+                    payload.tags = roleType ? [roleType] : [];
+                    payload.goldenFingers = goldenFingerDraft.map((entry, index) => normalizeGoldenFingerRecord(entry, index));
+                    payload.goldenFinger = summarizeGoldenFingers(payload.goldenFingers).join('；');
+                }
+                if (current === 'plotLines') {
+                    payload.clueType = getClueTypeValue();
+                }
                 if (editIndex >= 0) data[current][editIndex] = payload;
                 else data[current].push(payload);
 
                 persist();
+                const total = (data[current] || []).length;
+                page = Math.max(1, Math.ceil(total / PAGE_SIZE));
                 renderNav();
                 renderItems();
                 clearForm();
+                closeEditor();
                 setStatus('知识库已保存');
             });
 
-            resetBtn.addEventListener('click', clearForm);
-            searchEl.addEventListener('input', renderItems);
+            if (openEditorBtn) {
+                openEditorBtn.addEventListener('click', () => {
+                    editIndex = -1;
+                    clearForm();
+                    openEditor('create');
+                });
+            }
+            if (editorCloseBtn) {
+                editorCloseBtn.addEventListener('click', closeEditor);
+            }
+            if (editorModalEl) {
+                editorModalEl.addEventListener('click', (event) => {
+                    if (event.target === editorModalEl) closeEditor();
+                });
+            }
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') closeEditor();
+            });
 
+            resetBtn.addEventListener('click', clearForm);
+            if (gfSaveBtn) {
+                gfSaveBtn.addEventListener('click', upsertGoldenFinger);
+            }
+            if (gfResetBtn) {
+                gfResetBtn.addEventListener('click', () => {
+                    clearGoldenFingerEditor();
+                    setStatus('已清空金手指输入区');
+                });
+            }
+            if (gfTypeEl) {
+                gfTypeEl.addEventListener('change', () => {
+                    const useCustom = gfTypeEl.value === '__custom__';
+                    if (gfTypeCustomEl) {
+                        gfTypeCustomEl.style.display = useCustom ? 'block' : 'none';
+                        if (!useCustom) gfTypeCustomEl.value = '';
+                    }
+                    renderSubtypeOptions(getTypeText(), '');
+                    applySubtypeDefaultEffect(true);
+                });
+            }
+            if (gfTypeCustomEl) {
+                gfTypeCustomEl.addEventListener('input', () => {
+                    renderSubtypeOptions(getTypeText(), getSubtypeText());
+                    applySubtypeDefaultEffect(false);
+                });
+            }
+            if (gfSubtypeEl) {
+                gfSubtypeEl.addEventListener('change', () => {
+                    const useCustom = gfSubtypeEl.value === '__custom__';
+                    if (gfSubtypeCustomEl) {
+                        gfSubtypeCustomEl.style.display = useCustom ? 'block' : 'none';
+                        if (!useCustom) gfSubtypeCustomEl.value = '';
+                    }
+                    applySubtypeDefaultEffect(true);
+                });
+            }
+            if (gfSubtypeCustomEl) {
+                gfSubtypeCustomEl.addEventListener('input', () => {
+                    applySubtypeDefaultEffect(false);
+                });
+            }
+            if (goldenListEl) {
+                goldenListEl.addEventListener('click', (event) => {
+                    const editTarget = event.target.closest('.kb-gf-edit');
+                    if (editTarget) {
+                        const idx = Number(editTarget.getAttribute('data-gf-index'));
+                        if (Number.isInteger(idx) && goldenFingerDraft[idx]) {
+                            goldenEditIndex = idx;
+                            fillGoldenFingerEditor(goldenFingerDraft[idx]);
+                            if (gfSaveBtn) gfSaveBtn.textContent = '更新金手指';
+                            setStatus('已加载金手指条目，可编辑后更新');
+                        }
+                        return;
+                    }
+
+                    const deleteTarget = event.target.closest('.kb-gf-delete');
+                    if (!deleteTarget) return;
+                    const idx = Number(deleteTarget.getAttribute('data-gf-index'));
+                    if (!Number.isInteger(idx) || !goldenFingerDraft[idx]) return;
+                    const removedWasMain = goldenFingerDraft[idx].role === 'main';
+                    goldenFingerDraft.splice(idx, 1);
+                    if (removedWasMain && goldenFingerDraft.length) {
+                        goldenFingerDraft[0].role = 'main';
+                    }
+                    clearGoldenFingerEditor();
+                    renderGoldenFingerDraft();
+                    setStatus('金手指条目已删除');
+                });
+            }
+            if (clueSelectEl) {
+                clueSelectEl.addEventListener('change', () => {
+                    if (clueCustomEl) {
+                        const useCustom = clueSelectEl.value === '__custom__';
+                        clueCustomEl.style.display = useCustom ? 'block' : 'none';
+                        if (!useCustom) clueCustomEl.value = '';
+                    }
+                });
+            }
+            if (roleSelectEl) {
+                roleSelectEl.addEventListener('change', () => {
+                    if (roleCustomEl) {
+                        const useCustom = roleSelectEl.value === '__custom__';
+                        roleCustomEl.style.display = useCustom ? 'block' : 'none';
+                        if (!useCustom) roleCustomEl.value = '';
+                    }
+                });
+            }
+
+            setGoldenFingerDraft([]);
+            clearGoldenFingerEditor();
+            setRoleTypeValue('');
+            renderCategoryExtras();
+            renderTemplateActions();
             renderNav();
             renderItems();
         }

@@ -6,7 +6,12 @@
     <title>小说创作工作台</title>
     <script>
         (function () {
-            const theme = localStorage.getItem('workspaceTheme') === 'dark' ? 'dark' : 'light';
+            const key = 'workspaceTheme';
+            const savedTheme = localStorage.getItem(key);
+            const theme = savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'dark';
+            if (!savedTheme) {
+                localStorage.setItem(key, theme);
+            }
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
@@ -82,7 +87,8 @@
             const THEME_KEY = 'workspaceTheme';
 
             function getCurrentTheme() {
-                return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
+                const savedTheme = localStorage.getItem(THEME_KEY);
+                return savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'dark';
             }
 
             function updateThemeButtons(theme) {

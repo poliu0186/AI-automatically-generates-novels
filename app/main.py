@@ -7,6 +7,8 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/')
 @login_required
 def home():
+    if getattr(current_user, 'is_admin', False):
+        return redirect(url_for('admin.admin_dashboard'))
     return render_template('workspace_shell.html', user=current_user, active_page='basic')
 
 

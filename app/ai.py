@@ -4,6 +4,7 @@ from openai import OpenAI
 from flask import Blueprint, request, Response, current_app, send_file, has_app_context, stream_with_context
 from flask_login import login_required, current_user
 
+from app.activity_logging import log_user_action
 from app.billing import (
     InsufficientBalanceError,
     get_or_create_wallet,
@@ -15,6 +16,7 @@ from app.billing import (
     reserve_usage_charge,
 )
 from app.extensions import db
+from app.models import ExportedArticle
 
 try:
     from docx import Document
@@ -35,6 +37,13 @@ api_bp = Blueprint('api', __name__)
 
 def get_client(endpoint, api_key):
     return OpenAI(base_url=endpoint, api_key=api_key)
+
+
+def _safe_export_title(raw_title):
+    title = re.sub(r'\s+', ' ', str(raw_title or 'generated_novel')).strip()
+    if not title:
+        title = 'generated_novel'
+    return title[:120]
 
 
 def _extract_chunk_usage(chunk):
@@ -152,6 +161,11 @@ def _stream_with_billing(*, endpoint_name, endpoint_key, api_key_name, model_nam
                 total_tokens=total_tokens,
                 usage_source=usage_source,
             )
+            log_user_action(
+                current_user.id,
+                'ai_generate_completed',
+                f'endpoint={endpoint_name}, model={model_name}, total_tokens={total_tokens}, request_id={request_id}'
+            )
             db.session.commit()
         except GeneratorExit:
             # Client closed stream early. Release reservation safely and stop silently.
@@ -212,17 +226,29 @@ def download_novel():
     data = request.json
     content = data.get('content', '')
     format_type = data.get('format', 'txt')
-    title = data.get('title', 'generated_novel')
+    title = _safe_export_title(data.get('title', 'generated_novel'))
 
     if not content:
         return {'error': 'No content provided'}, 400
 
     content = re.sub(r'<[^>]+>', '', content)
+    content_length = len(content)
+
+    export_record = ExportedArticle(
+        user_id=current_user.id,
+        title=title,
+        format_type=str(format_type or 'txt').lower(),
+        content=content,
+        content_length=content_length,
+    )
+    db.session.add(export_record)
 
     if format_type == 'txt':
         buffer = BytesIO()
         buffer.write(content.encode('utf-8'))
         buffer.seek(0)
+        log_user_action(current_user.id, 'novel_export_download', f'title={title}, format=txt, length={content_length}')
+        db.session.commit()
         return send_file(
             buffer,
             as_attachment=True,
@@ -232,6 +258,7 @@ def download_novel():
 
     elif format_type == 'docx':
         if not DOCX_AVAILABLE:
+            db.session.rollback()
             return {'error': 'DOCX format not available. Please install python-docx'}, 400
 
         doc = Document()
@@ -244,6 +271,8 @@ def download_novel():
         buffer = BytesIO()
         doc.save(buffer)
         buffer.seek(0)
+        log_user_action(current_user.id, 'novel_export_download', f'title={title}, format=docx, length={content_length}')
+        db.session.commit()
         return send_file(
             buffer,
             as_attachment=True,
@@ -253,6 +282,7 @@ def download_novel():
 
     elif format_type == 'pdf':
         if not PDF_AVAILABLE:
+            db.session.rollback()
             return {'error': 'PDF format not available. Please install reportlab'}, 400
 
         buffer = BytesIO()
@@ -266,6 +296,8 @@ def download_novel():
 
         doc.build(story)
         buffer.seek(0)
+        log_user_action(current_user.id, 'novel_export_download', f'title={title}, format=pdf, length={content_length}')
+        db.session.commit()
         return send_file(
             buffer,
             as_attachment=True,
@@ -274,4 +306,5 @@ def download_novel():
         )
 
     else:
+        db.session.rollback()
         return {'error': 'Unsupported format'}, 400

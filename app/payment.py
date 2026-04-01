@@ -1,14 +1,99 @@
 import json
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from io import BytesIO
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_file
 from flask_login import current_user, login_required
 
+from app.activity_logging import log_user_action
 from app.billing import InsufficientBalanceError, apply_recharge, charge_feature_coins, create_recharge_order, get_or_create_wallet
 from app.extensions import db
-from app.models import LLMUsageRecord, RechargeOrder, WalletLedger
+from app.models import AdminSetting, ExportedArticle, LLMUsageRecord, RechargeOrder, WalletLedger
+
+try:
+    from docx import Document
+    DOCX_AVAILABLE = True
+except Exception:
+    DOCX_AVAILABLE = False
+
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate
+    PDF_AVAILABLE = True
+except Exception:
+    PDF_AVAILABLE = False
 
 payment_bp = Blueprint('payment', __name__)
+
+
+def _get_admin_setting(key, default=''):
+    row = AdminSetting.query.filter_by(key=key).first()
+    if row and row.value is not None:
+        return row.value
+    return default
+
+
+def _payment_channel():
+    return (_get_admin_setting('payment_channel', current_app.config.get('PAYMENT_CHANNEL', 'alipay')) or 'alipay').strip().lower()
+
+
+def _safe_days(value, default=7):
+    try:
+        days = int(value or default)
+    except (TypeError, ValueError):
+        days = default
+    return max(1, min(days, 30))
+
+
+def _build_export_file_response(article):
+    title = (article.title or 'exported_article').strip() or 'exported_article'
+    format_type = (article.format_type or 'txt').strip().lower()
+    content = article.content or ''
+
+    if format_type == 'txt':
+        buffer = BytesIO()
+        buffer.write(content.encode('utf-8'))
+        buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name=f'{title}.txt', mimetype='text/plain')
+
+    if format_type == 'docx':
+        if not DOCX_AVAILABLE:
+            return jsonify({'error': 'DOCX 格式暂不可用，请安装 python-docx'}), 400
+        doc = Document()
+        doc.add_heading(title, 0)
+        for para in content.split('\n\n'):
+            if para.strip():
+                doc.add_paragraph(para.strip())
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f'{title}.docx',
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+
+    if format_type == 'pdf':
+        if not PDF_AVAILABLE:
+            return jsonify({'error': 'PDF 格式暂不可用，请安装 reportlab'}), 400
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+        for para in content.split('\n\n'):
+            if para.strip():
+                story.append(Paragraph(para.strip(), styles['Normal']))
+        doc.build(story)
+        buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name=f'{title}.pdf', mimetype='application/pdf')
+
+    buffer = BytesIO()
+    buffer.write(content.encode('utf-8'))
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name=f'{title}.txt', mimetype='text/plain')
 
 
 def _compact_pem_body(value):
@@ -159,7 +244,7 @@ def wallet_summary():
             'review_audit_coins': int(current_app.config.get('REVIEW_AUDIT_COINS', '2') or 2),
             'min_recharge_amount_yuan': current_app.config['MIN_RECHARGE_AMOUNT_YUAN'],
             'payments_ready': _alipay_ready(),
-            'payment_channel': 'alipay',
+            'payment_channel': _payment_channel(),
             'can_view_usage': can_view_usage,
         },
         'recent_orders': [
@@ -207,6 +292,9 @@ def wallet_summary():
 @payment_bp.route('/payment/alipay/create', methods=['POST'])
 @login_required
 def create_alipay_order():
+    if _payment_channel() != 'alipay':
+        return jsonify({'error': '当前支付通道已关闭在线支付，请联系管理员。'}), 400
+
     if not _alipay_ready():
         return jsonify({'error': '支付宝支付配置未完成，请先填写 .env 中的支付参数并安装依赖。'}), 400
 
@@ -226,6 +314,7 @@ def create_alipay_order():
     try:
         order = create_recharge_order(current_user.id, amount_yuan=amount_yuan, subject=subject)
         pay_url = _build_alipay_page_url(order)
+        log_user_action(current_user.id, 'create_recharge_order', f'order_no={order.order_no}, amount={amount_yuan}')
         db.session.commit()
     except Exception as error:
         db.session.rollback()
@@ -280,6 +369,7 @@ def alipay_notify():
                 buyer_logon_id=form_data.get('buyer_logon_id') or order.buyer_logon_id,
                 notify_payload=json.dumps(form_data, ensure_ascii=False)
             )
+            log_user_action(order.user_id, 'recharge_paid', f'order_no={order.order_no}, amount={order.amount_yuan}, coins={order.coins}')
         elif trade_status == 'TRADE_CLOSED':
             if order.status == 'pending':
                 order.status = 'closed'
@@ -312,6 +402,7 @@ def dev_mark_recharge_paid(order_no):
             buyer_logon_id=current_user.username,
             notify_payload='development-manual-recharge'
         )
+        log_user_action(current_user.id, 'recharge_paid', f'order_no={order.order_no}, amount={order.amount_yuan}, coins={order.coins}')
         db.session.commit()
     except Exception as error:
         db.session.rollback()
@@ -351,6 +442,7 @@ def wallet_feature_charge():
             idempotency_key=idempotency_key,
             remark=feature['remark']
         )
+        log_user_action(current_user.id, 'feature_charge', f'feature={feature_code}, coins={feature["coins"]}')
         db.session.commit()
     except InsufficientBalanceError as error:
         db.session.rollback()
@@ -367,3 +459,50 @@ def wallet_feature_charge():
         'available_coins': wallet.available_coins,
         'reserved_coins': wallet.reserved_coins,
     })
+
+
+@payment_bp.route('/wallet/exported-articles')
+@login_required
+def wallet_exported_articles():
+    days = _safe_days(request.args.get('days', '7'), default=7)
+    keyword = str(request.args.get('keyword', '') or '').strip()
+    start_at = datetime.utcnow() - timedelta(days=days)
+
+    query = ExportedArticle.query.filter(
+        ExportedArticle.user_id == current_user.id,
+        ExportedArticle.created_at >= start_at,
+    )
+    if keyword:
+        query = query.filter(ExportedArticle.title.ilike(f'%{keyword}%'))
+
+    items = query.order_by(ExportedArticle.created_at.desc()).limit(200).all()
+    return jsonify({
+        'days': days,
+        'keyword': keyword,
+        'items': [
+            {
+                'id': item.id,
+                'title': item.title,
+                'format_type': item.format_type,
+                'content_length': item.content_length,
+                'created_at': item.created_at.isoformat() if item.created_at else '',
+                'download_name': f"{item.title}.{item.format_type or 'txt'}",
+            }
+            for item in items
+        ]
+    })
+
+
+@payment_bp.route('/wallet/exported-articles/<int:article_id>/download')
+@login_required
+def wallet_exported_article_download(article_id):
+    start_at = datetime.utcnow() - timedelta(days=7)
+    article = ExportedArticle.query.filter(
+        ExportedArticle.id == article_id,
+        ExportedArticle.user_id == current_user.id,
+        ExportedArticle.created_at >= start_at,
+    ).first()
+    if not article:
+        return jsonify({'error': '未找到可下载记录（仅支持最近 7 天）'}), 404
+
+    return _build_export_file_response(article)

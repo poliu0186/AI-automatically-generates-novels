@@ -271,3 +271,57 @@ def charge_feature_coins(user_id, *, feature_code, coins, idempotency_key=None, 
     )
     db.session.flush()
     return wallet, ledger
+
+
+def admin_adjust_wallet(user_id, *, op_type, coins, remark=None, operator_id=None, idempotency_key=None):
+    op = str(op_type or '').strip().lower()
+    amount = max(int(coins or 0), 0)
+    if amount <= 0:
+        raise ValueError('代币数量必须大于 0')
+
+    if op not in ('recharge', 'consume', 'grant', 'deduct'):
+        raise ValueError('不支持的钱包调整类型')
+
+    if idempotency_key:
+        existing = WalletLedger.query.filter_by(idempotency_key=idempotency_key).first()
+        if existing:
+            wallet = WalletAccount.query.filter_by(id=existing.wallet_account_id).one()
+            return wallet, existing
+
+    wallet = get_or_create_wallet(user_id, lock=True)
+    change_type = f'admin_{op}'
+    op_remark = (remark or '').strip()
+    if operator_id:
+        suffix = f'（操作员#{operator_id}）'
+        op_remark = f'{op_remark} {suffix}'.strip()
+
+    if op in ('recharge', 'grant'):
+        wallet.available_coins += amount
+        if op == 'recharge':
+            wallet.total_recharged_coins += amount
+        ledger = create_wallet_ledger(
+            wallet,
+            change_type=change_type,
+            available_delta=amount,
+            idempotency_key=idempotency_key,
+            remark=op_remark or f'后台{op}增加 {amount} 代币'
+        )
+        db.session.flush()
+        return wallet, ledger
+
+    if wallet.available_coins < amount:
+        raise InsufficientBalanceError('用户可用余额不足，无法扣减')
+
+    wallet.available_coins -= amount
+    if op == 'consume':
+        wallet.total_consumed_coins += amount
+
+    ledger = create_wallet_ledger(
+        wallet,
+        change_type=change_type,
+        available_delta=-amount,
+        idempotency_key=idempotency_key,
+        remark=op_remark or f'后台{op}扣减 {amount} 代币'
+    )
+    db.session.flush()
+    return wallet, ledger
