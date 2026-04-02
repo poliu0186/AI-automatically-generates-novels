@@ -119,7 +119,7 @@
         <article class="ticket">
             <div class="ticket-top">
                 <strong>{{ ticket.subject }}</strong>
-                <span class="tag {% if ticket.status == 'replied' %}replied{% endif %}">{{ '已回复' if ticket.status == 'replied' else '待处理' }}</span>
+                <span class="tag {% if ticket.status in ('replied', 'read') %}replied{% endif %}">{{ '已回复' if ticket.status in ('replied', 'read') else '待处理' }}</span>
             </div>
             <div class="meta">提交时间：{{ ticket.created_at }}</div>
             <p style="white-space: pre-wrap; margin:8px 0 0;">{{ ticket.content }}</p>

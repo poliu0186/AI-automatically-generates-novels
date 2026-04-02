@@ -18,6 +18,7 @@ def home():
     if getattr(current_user, 'is_admin', False):
         return redirect(url_for('admin.admin_dashboard'))
     nav_data = build_workspace_nav_view_data()
+    unread_message_count = UserMessage.query.filter_by(user_id=current_user.id, status='replied').count()
     return render_template(
         'workspace_shell.html',
         user=current_user,
@@ -26,6 +27,7 @@ def home():
         nav_advanced_items=nav_data['advanced_items'],
         enabled_pages=nav_data['enabled_pages'],
         user_center_page=nav_data['user_center_page'],
+        unread_message_count=unread_message_count,
     )
 
 
@@ -92,6 +94,13 @@ def user_messages():
             db.session.commit()
             flash('消息已发送给管理员，我们会尽快处理并回复。', 'success')
             return redirect(url_for('main.user_messages'))
+
+    marked_count = UserMessage.query.filter_by(user_id=current_user.id, status='replied').update(
+        {'status': 'read'},
+        synchronize_session=False,
+    )
+    if marked_count:
+        db.session.commit()
 
     messages = UserMessage.query.filter_by(user_id=current_user.id).order_by(UserMessage.created_at.desc()).limit(100).all()
     return render_template('messages.html', user=current_user, messages=messages)

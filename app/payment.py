@@ -319,7 +319,7 @@ def create_alipay_order():
     except Exception as error:
         db.session.rollback()
         current_app.logger.exception('创建支付宝订单失败')
-        return jsonify({'error': f'创建支付订单失败：{error}'}), 500
+        return jsonify({'error': '创建支付订单失败，请稍后重试或联系管理员。'}), 500
 
     return jsonify({
         'order_no': order.order_no,
@@ -361,6 +361,22 @@ def alipay_notify():
             current_app.logger.error('支付宝通知对应订单不存在: %s', order_no)
             db.session.rollback()
             return 'failure'
+
+        total_amount_raw = (form_data.get('total_amount') or '').strip()
+        if total_amount_raw:
+            try:
+                notify_amount = Decimal(total_amount_raw).quantize(Decimal('0.01'))
+            except (InvalidOperation, TypeError):
+                current_app.logger.error('支付宝通知金额格式非法: order=%s total_amount=%s', order_no, total_amount_raw)
+                return 'failure'
+            if notify_amount != Decimal(str(order.amount_yuan)).quantize(Decimal('0.01')):
+                current_app.logger.error(
+                    '支付宝通知金额不匹配: order=%s notify=%s expected=%s',
+                    order_no,
+                    notify_amount,
+                    order.amount_yuan,
+                )
+                return 'failure'
 
         if trade_status in ('TRADE_SUCCESS', 'TRADE_FINISHED'):
             apply_recharge(

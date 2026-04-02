@@ -47,6 +47,17 @@ def _clear_admin_otp_payload():
     session.pop(ADMIN_LOGIN_OTP_SESSION_KEY, None)
 
 
+def _clear_login_captcha_payload():
+    session.pop('login_captcha_code', None)
+    session.pop('login_captcha_at', None)
+
+
+def _clear_auth_transient_state():
+    _clear_admin_otp_payload()
+    _clear_login_captcha_payload()
+    session.pop('forgot_password_cooldowns', None)
+
+
 def _generate_admin_otp_code():
     digits = '0123456789'
     return ''.join(secrets.choice(digits) for _ in range(_admin_otp_length()))
@@ -290,8 +301,7 @@ def is_login_captcha_valid(captcha_input):
     user_input = (captcha_input or '').strip().upper()
     ttl = int(current_app.config.get('LOGIN_CAPTCHA_TTL_SECONDS', 180))
 
-    session.pop('login_captcha_code', None)
-    session.pop('login_captcha_at', None)
+    _clear_login_captcha_payload()
 
     if not expected or not generated_at:
         return False
@@ -466,7 +476,6 @@ def login():
                 flash('管理员账号请使用后台专用登录入口。', 'danger')
             else:
                 _complete_login(user)
-                flash('登录成功。', 'success')
                 return _post_login_redirect(user, request.args.get('next'))
         else:
             locked_now = register_user_login_failure(user)
@@ -544,7 +553,6 @@ def admin_login():
                     flash(message, 'success' if ok else 'danger')
                     return render_template('admin_login.html', **_admin_otp_view_model())
                 _complete_login(user, action_name='admin_login_success', detail='管理员后台登录成功')
-                flash('管理员登录成功。', 'success')
                 return _post_login_redirect(user, request.args.get('next'))
         else:
             locked_now = register_user_login_failure(user)
@@ -730,6 +738,7 @@ def change_password_page():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    _clear_auth_transient_state()
     logout_user()
     flash('您已退出登录。', 'success')
     return redirect(url_for('main.home'))

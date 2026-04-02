@@ -644,7 +644,7 @@
                         <td>{{ item.subject }}</td>
                         <td style="white-space: pre-wrap;">{{ item.content }}</td>
                         <td>
-                            {% if item.status == 'replied' %}
+                            {% if item.status in ('replied', 'read') %}
                             <span class="tag admin">已回复</span>
                             {% else %}
                             <span class="tag">待处理</span>

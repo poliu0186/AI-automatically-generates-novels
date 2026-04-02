@@ -29,7 +29,12 @@
                 <button class="theme-option" id="theme-dark" type="button" data-theme="dark">暗色</button>
             </div>
             <button class="link-btn" id="topbar-user-center" type="button">{{ user.username }}</button>
-            <a class="link-btn" href="{{ url_for('main.user_messages') }}">消息</a>
+            <a class="link-btn message-link" href="{{ url_for('main.user_messages') }}">
+                消息
+                {% if unread_message_count and unread_message_count > 0 %}
+                <span class="message-badge">{{ unread_message_count if unread_message_count < 100 else '99+' }}</span>
+                {% endif %}
+            </a>
             {% if user.is_admin %}
             <a class="link-btn" href="{{ url_for('admin.admin_dashboard') }}">管理员</a>
             {% endif %}

@@ -129,6 +129,29 @@ body {
     color: var(--ink);
     font-size: 13px;
     background: var(--panel-bg);
+    cursor: pointer;
+}
+
+.message-link {
+    position: relative;
+}
+
+.message-badge {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f04b4b;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    border: 2px solid var(--panel-bg);
 }
 
 .link-btn.danger {

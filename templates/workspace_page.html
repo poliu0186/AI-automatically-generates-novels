@@ -1733,7 +1733,7 @@
                     <button id="btn-hide-role-tip" type="button">我知道了</button>
                 </div>
             </div>
-            <div class="meta-hint">建议先填写这 4 个基础定位：小说类型、面向读者、故事时间、故事地点。它们会直接影响大纲风格、剧情节奏和场景表达。</div>
+            <div class="meta-hint">建议先填写这 5 个基础定位：小说类型、面向读者、故事时间、故事地点、写作风格。它们会直接影响大纲风格、剧情节奏和场景表达。</div>
             <div class="section-head">
                 <h3 class="section-title">基础定位</h3>
                 <span class="pill">建议优先填写</span>
@@ -1807,6 +1807,29 @@
                         <option value="__custom__">其他（自定义）</option>
                     </select>
                     <input class="custom-input" id="story-location-custom" placeholder="请输入自定义故事地点">
+                </div>
+                <div class="field">
+                    <label class="label" for="style">写作风格</label>
+                    <select id="style">
+                        <option value="">请选择写作风格</option>
+                        <option value="通俗爽文">通俗爽文（网文主流）</option>
+                        <option value="番茄快节奏">番茄快节奏（高信息密度）</option>
+                        <option value="起点燃爽">起点燃爽（升级反馈强）</option>
+                        <option value="晋江细腻情感">晋江细腻情感（关系拉扯）</option>
+                        <option value="轻松幽默">轻松幽默（日常感强）</option>
+                        <option value="热血燃向">热血燃向（冲突与成长）</option>
+                        <option value="悬疑压迫">悬疑压迫（氛围与反转）</option>
+                        <option value="古风雅致">古风雅致（文气与意境）</option>
+                        <option value="冷峻写实">冷峻写实（克制、现实）</option>
+                        <option value="细腻抒情">细腻抒情（情绪递进）</option>
+                        <option value="电影化镜头">电影化镜头（画面感强）</option>
+                        <option value="轻小说风">轻小说风（轻快口吻）</option>
+                        <option value="黑色幽默">黑色幽默（反差与讽刺）</option>
+                        <option value="硬核科幻">硬核科幻（设定驱动）</option>
+                        <option value="史诗宏大">史诗宏大（群像与格局）</option>
+                        <option value="__custom__">其他（自定义）</option>
+                    </select>
+                    <input class="custom-input" id="style-custom" placeholder="请输入自定义写作风格">
                 </div>
             </div>
             <div class="section-head" style="margin-top:6px;">
@@ -2008,17 +2031,6 @@
                         <option value="third">第三人称</option>
                         <option value="multi">多视角切换</option>
                     </select>
-                </div>
-                <div class="field">
-                    <label class="label" for="language-style">语言风格倾向</label>
-                    <select id="language-style">
-                        <option value="">不指定（可选）</option>
-                        <option value="plain">简洁直白</option>
-                        <option value="balanced">通俗均衡</option>
-                        <option value="literary">偏文学化</option>
-                        <option value="__custom__">自定义</option>
-                    </select>
-                    <input class="custom-input" id="language-style-custom" placeholder="请输入自定义语言风格要求">
                 </div>
                 <div class="field">
                     <label class="label" for="pacing-level">节奏强度</label>
@@ -2701,7 +2713,7 @@
                 '6. 输出要求（结构与字数建议）：故事梗概（约500字）、核心主题（约100字）、人物重点、情节脉络、爆点设计（3-5个）、高潮铺垫、结局构思（约200字）。'
             ].join('\n'),
             chapter: [
-                '1. 每章建议字数区间：3000-4000（可按项目实际调整）。',
+                '1. 默认生成12章，每章2800-4000字，可按需要调整。',
                 '2. 每章都要有：开篇引子、推进事件、冲突/转折、章末钩子。',
                 '3. 每章要明确人物互动变化与情感/关系推进。',
                 '4. 场景转换要自然流畅，场景与氛围要服务剧情。',
@@ -2911,7 +2923,10 @@
                 </div>
             `;
 
+            const releaseLock = acquireDialogInteractionLock(overlay);
+
             const close = () => {
+                releaseLock();
                 overlay.remove();
             };
 
@@ -3017,11 +3032,11 @@
         }
 
         function initBasicPage() {
-            const state = getState();
+            let state = getState();
             const detailPanel = document.getElementById('basic-details-panel');
             const toggleButton = document.getElementById('btn-toggle-basic-details');
             const detailKeys = ['background', 'characters', 'relationships', 'plot'];
-            const metaIds = ['novel-type', 'target-readers', 'story-time', 'story-location'];
+            const metaIds = ['novel-type', 'target-readers', 'story-time', 'story-location', 'style'];
             const charactersEl = document.getElementById('characters');
             const relationshipsEl = document.getElementById('relationships');
             const plotEl = document.getElementById('plot');
@@ -3044,6 +3059,21 @@
             const roleOnboardTip = document.getElementById('role-onboard-tip');
             const btnGoKnowledge = document.getElementById('btn-go-knowledge');
             const btnHideRoleTip = document.getElementById('btn-hide-role-tip');
+
+            const legacyStyleMap = {
+                plain: '简洁直白',
+                balanced: '通俗均衡',
+                literary: '偏文学化'
+            };
+            const legacyPromptStrategy = state.promptStrategy || {};
+            const legacyLanguageStyle = String(legacyPromptStrategy.languageStyle || '').trim();
+            if (!String(state.style || '').trim() && legacyLanguageStyle) {
+                const migratedStyle = legacyStyleMap[legacyLanguageStyle] || legacyLanguageStyle;
+                const nextPromptStrategy = { ...legacyPromptStrategy };
+                delete nextPromptStrategy.languageStyle;
+                saveState({ style: migratedStyle, promptStrategy: nextPromptStrategy });
+                state = getState();
+            }
 
             const settingTemplates = {
                 relationships: [
@@ -3497,8 +3527,6 @@
             const emotionLevelCustom = document.getElementById('emotion-level-custom');
             const hookStrength = document.getElementById('hook-strength');
             const hookStrengthCustom = document.getElementById('hook-strength-custom');
-            const languageStyle = document.getElementById('language-style');
-            const languageStyleCustom = document.getElementById('language-style-custom');
             const customRequirements = document.getElementById('custom-strategy-requirements');
             const btnApply = document.getElementById('btn-apply-strategy');
             const btnReset = document.getElementById('btn-reset-strategy');
@@ -3542,7 +3570,7 @@
                     '输出应突出：开篇钩子、每卷爆点、短周期冲突升级路径。'
                 ],
                 chapter: [
-                    '每章建议字数区间：3000-4000（可按项目实际调整）。',
+                    '默认生成12章，每章2800-4000字，可按需要调整。',
                     '每章都要有：开篇引子、推进事件、冲突/转折、章末钩子。',
                     '每章要明确人物互动变化与情感/关系推进。',
                     '场景转换要自然流畅，场景与氛围要服务剧情。',
@@ -3581,7 +3609,6 @@
                 conflictLevel: '',
                 emotionLevel: '',
                 hookStrength: '',
-                languageStyle: '',
                 customRequirements: ''
             };
 
@@ -3603,6 +3630,23 @@
             };
             let manualPromptsEditable = false;
             let manualPromptSaveTimer = null;
+
+            function syncDefaultStrategyNumbers() {
+                // 大纲策略-输出要求（默认模板第 6 条）默认整数
+                if (!getStageNumberOverride('outline', 5, 0)) setStageNumberOverride('outline', 5, 0, '500');
+                if (!getStageNumberOverride('outline', 5, 1)) setStageNumberOverride('outline', 5, 1, '100');
+                if (!getStageNumberOverride('outline', 5, 2)) setStageNumberOverride('outline', 5, 2, '3');
+                if (!getStageNumberOverride('outline', 5, 3)) setStageNumberOverride('outline', 5, 3, '5');
+                if (!getStageNumberOverride('outline', 5, 4)) setStageNumberOverride('outline', 5, 4, '200');
+
+                // 章节策略-章节数与每章建议字数区间（默认模板第 1 条）默认整数
+                if (!getStageNumberOverride('chapter', 0, 0)) setStageNumberOverride('chapter', 0, 0, '12');
+                if (!getStageNumberOverride('chapter', 0, 1)) setStageNumberOverride('chapter', 0, 1, '2800');
+                if (!getStageNumberOverride('chapter', 0, 2)) setStageNumberOverride('chapter', 0, 2, '4000');
+
+                if (outlineStrategyList) renderStageStrategy('outline', outlineStrategyList);
+                if (chapterStrategyList) renderStageStrategy('chapter', chapterStrategyList);
+            }
 
             function flashManualPromptSaved() {
                 if (!manualPromptSaveIndicator) return;
@@ -3903,7 +3947,6 @@
                     conflictLevel: conflictLevel.value,
                     emotionLevel: readOptionalSelectValue(emotionLevel, emotionLevelCustom),
                     hookStrength: readOptionalSelectValue(hookStrength, hookStrengthCustom),
-                    languageStyle: readOptionalSelectValue(languageStyle, languageStyleCustom),
                     customRequirements: customRequirements.value
                 };
             }
@@ -3958,20 +4001,11 @@
                     mid: '章末钩子：中钩子，留悬念并推动下章阅读。',
                     strong: '章末钩子：强钩子，以悬念或危机收束。',
                 };
-                const languageMap = {
-                    plain: '语言风格：简洁直接，减少修辞负担。',
-                    balanced: '语言风格：通俗均衡，兼顾可读性与表现力。',
-                    literary: '语言风格：偏文学化，增强描写与意象。'
-                };
 
                 const lines = [];
 
                 if (data.narrativePerspective) {
                     lines.push(perspectiveMap[data.narrativePerspective] || `叙事视角：${data.narrativePerspective}`);
-                }
-
-                if (data.languageStyle) {
-                    lines.push(languageMap[data.languageStyle] || `语言风格：${data.languageStyle}`);
                 }
 
                 if (data.pacingLevel) {
@@ -3991,7 +4025,7 @@
                 }
 
                 if (!lines.length) {
-                    lines.push('创作要求：不额外限定叙事视角、语言风格、节奏、冲突、情感浓度与章末钩子。');
+                    lines.push('创作要求：不额外限定叙事视角、节奏、冲突、情感浓度与章末钩子。');
                 }
 
                 return lines.join('\n');
@@ -4065,8 +4099,8 @@
             conflictLevel.value = strategy.conflictLevel;
             setupOptionalSelect(emotionLevel, emotionLevelCustom, strategy.emotionLevel);
             setupOptionalSelect(hookStrength, hookStrengthCustom, strategy.hookStrength);
-            setupOptionalSelect(languageStyle, languageStyleCustom, strategy.languageStyle);
             customRequirements.value = strategy.customRequirements;
+            syncDefaultStrategyNumbers();
 
             renderStageStrategy('outline', outlineStrategyList);
             renderStageStrategy('chapter', chapterStrategyList);
@@ -4087,7 +4121,6 @@
                 conflictLevel,
                 emotionLevel,
                 hookStrength,
-                languageStyle,
                 customRequirements
             ].forEach((el) => {
                 if (!el) return;
@@ -4099,8 +4132,7 @@
 
             [
                 [emotionLevel, emotionLevelCustom],
-                [hookStrength, hookStrengthCustom],
-                [languageStyle, languageStyleCustom]
+                [hookStrength, hookStrengthCustom]
             ].forEach(([selectEl, customEl]) => {
                 if (!selectEl || !customEl) return;
                 selectEl.addEventListener('change', () => {
@@ -4162,8 +4194,8 @@
                 conflictLevel.value = strategyDefaults.conflictLevel;
                 setupOptionalSelect(emotionLevel, emotionLevelCustom, strategyDefaults.emotionLevel);
                 setupOptionalSelect(hookStrength, hookStrengthCustom, strategyDefaults.hookStrength);
-                setupOptionalSelect(languageStyle, languageStyleCustom, strategyDefaults.languageStyle);
                 customRequirements.value = strategyDefaults.customRequirements;
+                syncDefaultStrategyNumbers();
                 outlineCustomInput.value = '';
                 chapterCustomInput.value = '';
                 contentCustomInput.value = '';
@@ -4252,7 +4284,7 @@
             const kb = state.knowledgeBase ? `\n\n知识库补充：\n${state.knowledgeBase}` : '';
             const splitterContext = buildBookSplitterContext(state);
             const plotWithContext = (state.plot || '') + kb + splitterContext;
-            return (state.chapterPrompt || defaultPrompts.chapterPrompt)
+            const basePrompt = (state.chapterPrompt || defaultPrompts.chapterPrompt)
                 .replace('${outline}', state.outline || '')
                 .replace('${novel_type}', state.novel_type || '')
                 .replace('${target_readers}', state.target_readers || '')
@@ -4263,13 +4295,14 @@
                 .replace('${relationships}', state.relationships || '')
                 .replace('${plot}', plotWithContext)
                 .replace('${style}', state.style || '');
+            return basePrompt;
         }
 
         function buildContentPrompt(state, chapterOutline) {
             const kb = state.knowledgeBase ? `\n\n知识库补充：\n${state.knowledgeBase}` : '';
             const splitterContext = buildBookSplitterContext(state);
             const plotWithContext = (state.plot || '') + kb + splitterContext;
-            return (state.contentPrompt || defaultPrompts.contentPrompt)
+            const basePrompt = (state.contentPrompt || defaultPrompts.contentPrompt)
                 .replace('${outline}', state.outline || '')
                 .replace('${chapter_outline}', chapterOutline || '')
                 .replace('${novel_type}', state.novel_type || '')
@@ -4281,6 +4314,7 @@
                 .replace('${relationships}', state.relationships || '')
                 .replace('${plot}', plotWithContext)
                 .replace('${style}', state.style || '');
+            return basePrompt;
         }
 
         function parseMenuConfig(raw, key) {
@@ -4458,6 +4492,57 @@
             return '请先选择要编辑的内容，再执行 AI 编辑';
         }
 
+        let releaseDialogInteractionLock = null;
+
+        function acquireDialogInteractionLock(overlay) {
+            if (!overlay) {
+                return () => {};
+            }
+
+            if (typeof releaseDialogInteractionLock === 'function') {
+                releaseDialogInteractionLock();
+                releaseDialogInteractionLock = null;
+            }
+
+            const previousOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+
+            const blockOutsideEvent = (event) => {
+                if (!overlay.isConnected) {
+                    return;
+                }
+                if (overlay.contains(event.target)) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            };
+
+            document.addEventListener('pointerdown', blockOutsideEvent, true);
+            document.addEventListener('mousedown', blockOutsideEvent, true);
+            document.addEventListener('touchstart', blockOutsideEvent, true);
+            document.addEventListener('click', blockOutsideEvent, true);
+            document.addEventListener('focusin', blockOutsideEvent, true);
+
+            let released = false;
+            const release = () => {
+                if (released) return;
+                released = true;
+                document.removeEventListener('pointerdown', blockOutsideEvent, true);
+                document.removeEventListener('mousedown', blockOutsideEvent, true);
+                document.removeEventListener('touchstart', blockOutsideEvent, true);
+                document.removeEventListener('click', blockOutsideEvent, true);
+                document.removeEventListener('focusin', blockOutsideEvent, true);
+                if (releaseDialogInteractionLock === release) {
+                    releaseDialogInteractionLock = null;
+                }
+                document.body.style.overflow = previousOverflow;
+            };
+
+            releaseDialogInteractionLock = release;
+            return release;
+        }
+
         function openCenteredConfirmDialog({
             title = '请确认',
             message = '',
@@ -4483,7 +4568,14 @@
                     </div>
                 `;
 
+                const releaseLock = acquireDialogInteractionLock(overlay);
+
+                let cleaned = false;
+
                 const cleanup = (accepted) => {
+                    if (cleaned) return;
+                    cleaned = true;
+                    releaseLock();
                     overlay.remove();
                     resolve(Boolean(accepted));
                 };
@@ -4600,12 +4692,12 @@
 
             const panel = document.createElement('div');
             panel.className = 'max-editor-panel';
-            panel.style.width = 'min(1200px, 96vw)';
-            panel.style.height = 'min(95vh, 980px)';
+            panel.style.width = '100vw';
+            panel.style.height = '100vh';
             panel.style.background = 'var(--panel)';
-            panel.style.border = '1px solid var(--soft-border)';
-            panel.style.borderRadius = '14px';
-            panel.style.boxShadow = 'var(--shadow-elevated)';
+            panel.style.border = 'none';
+            panel.style.borderRadius = '0';
+            panel.style.boxShadow = 'none';
             panel.style.display = 'flex';
             panel.style.flexDirection = 'column';
             panel.style.padding = '14px';
@@ -4627,6 +4719,7 @@
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
                         <span id="max-editor-word-count" style="font-size:12px;color:var(--muted);background:var(--soft-panel-2);padding:6px 10px;border-radius:999px;border:1px solid var(--soft-border);">0 字</span>
+                        <button type="button" id="btn-max-editor-browser-fullscreen">进入浏览器全屏</button>
                         <button type="button" id="btn-max-editor-save">保存</button>
                         <button type="button" id="btn-max-editor-close">关闭</button>
                     </div>
@@ -4647,9 +4740,12 @@
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
 
+            const releaseLock = acquireDialogInteractionLock(overlay);
+
             const textarea = panel.querySelector('#max-editor-textarea');
             const closeBtn = panel.querySelector('#btn-max-editor-close');
             const saveBtn = panel.querySelector('#btn-max-editor-save');
+            const browserFullscreenBtn = panel.querySelector('#btn-max-editor-browser-fullscreen');
             const aiBtn = panel.querySelector('#btn-max-editor-ai');
             const actionSelect = panel.querySelector('#max-editor-action-select');
             const undoBtn = panel.querySelector('#btn-max-editor-undo');
@@ -4675,7 +4771,52 @@
                 wordCountEl.textContent = `${length} 字`;
             }
 
-            const close = () => overlay.remove();
+            function isBrowserFullscreenActive() {
+                return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+            }
+
+            function updateBrowserFullscreenButtonText() {
+                if (!browserFullscreenBtn) return;
+                browserFullscreenBtn.textContent = isBrowserFullscreenActive() ? '退出浏览器全屏' : '进入浏览器全屏';
+            }
+
+            async function toggleBrowserFullscreen() {
+                if (isBrowserFullscreenActive()) {
+                    if (document.exitFullscreen) {
+                        await document.exitFullscreen();
+                        return;
+                    }
+                    if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                        return;
+                    }
+                    return;
+                }
+
+                if (panel.requestFullscreen) {
+                    await panel.requestFullscreen();
+                    return;
+                }
+                if (panel.webkitRequestFullscreen) {
+                    panel.webkitRequestFullscreen();
+                    return;
+                }
+            }
+
+            const onFullscreenStateChange = () => {
+                updateBrowserFullscreenButtonText();
+            };
+
+            document.addEventListener('fullscreenchange', onFullscreenStateChange);
+            document.addEventListener('webkitfullscreenchange', onFullscreenStateChange);
+            updateBrowserFullscreenButtonText();
+
+            const close = () => {
+                document.removeEventListener('fullscreenchange', onFullscreenStateChange);
+                document.removeEventListener('webkitfullscreenchange', onFullscreenStateChange);
+                releaseLock();
+                overlay.remove();
+            };
 
             textarea.addEventListener('input', () => {
                 updateWordCount();
@@ -4686,6 +4827,15 @@
             });
             updateWordCount();
             if (closeBtn) closeBtn.addEventListener('click', close);
+            if (browserFullscreenBtn) {
+                browserFullscreenBtn.addEventListener('click', async () => {
+                    try {
+                        await toggleBrowserFullscreen();
+                    } catch (error) {
+                        setMaxEditorStatus('浏览器全屏切换失败，请检查浏览器权限设置', 'error');
+                    }
+                });
+            }
             if (saveBtn) {
                 saveBtn.addEventListener('click', () => {
                     if (typeof onSave === 'function') onSave(textarea.value, textarea);
@@ -4992,7 +5142,10 @@
                 overlay.appendChild(panel);
                 document.body.appendChild(overlay);
 
+                const releaseLock = acquireDialogInteractionLock(overlay);
+
                 const cleanup = (result) => {
+                    releaseLock();
                     overlay.remove();
                     resolve(result || null);
                 };
@@ -7658,6 +7811,60 @@
                 return 'status-pending';
             }
 
+            function normalizeStatusValue(status) {
+                return String(status || '').trim().toLowerCase();
+            }
+
+            function humanizeStatus(status, kind = 'order') {
+                const value = normalizeStatusValue(status);
+                const orderMap = {
+                    pending: '待支付',
+                    paid: '已支付',
+                    closed: '已关闭',
+                    failed: '失败',
+                    success: '成功'
+                };
+                const usageMap = {
+                    reserved: '处理中',
+                    completed: '已完成',
+                    released: '已释放',
+                    failed: '失败',
+                    success: '成功'
+                };
+                const commonMap = {
+                    pending: '待处理',
+                    paid: '已支付',
+                    completed: '已完成',
+                    closed: '已关闭',
+                    failed: '失败',
+                    released: '已释放',
+                    reserved: '已预占',
+                    success: '成功'
+                };
+
+                if (kind === 'order') {
+                    return orderMap[value] || commonMap[value] || (status || '-');
+                }
+                if (kind === 'usage') {
+                    return usageMap[value] || commonMap[value] || (status || '-');
+                }
+                return commonMap[value] || (status || '-');
+            }
+
+            async function readJsonSafely(response) {
+                const fallback = { error: `HTTP ${response.status}` };
+                try {
+                    return await response.json();
+                } catch (error) {
+                    try {
+                        const text = await response.text();
+                        return { error: text || fallback.error };
+                    } catch (innerError) {
+                        return fallback;
+                    }
+                }
+            }
+
             function renderList(container, items, emptyText) {
                 if (!items || !items.length) {
                     container.innerHTML = `<div class="wallet-empty">${escapeHtml(emptyText)}</div>`;
@@ -7713,12 +7920,12 @@
                     return `<div class="wallet-item">
                         <div class="wallet-item-top">
                             <span class="wallet-item-title">订单 ${escapeHtml(item.order_no || '-')}</span>
-                            <span class="wallet-tag ${normalizeStatusClass(status)}">${escapeHtml(status)}</span>
+                            <span class="wallet-tag ${normalizeStatusClass(status)}">${escapeHtml(humanizeStatus(status, 'order'))}</span>
                         </div>
                         <div class="wallet-item-meta">
                             <span class="wallet-tag">金额 ${escapeHtml(item.amount_yuan || '-')} 元</span>
                             <span class="wallet-tag">代币 ${escapeHtml(item.coins || 0)}</span>
-                            <span class="wallet-tag">创建 ${escapeHtml(item.created_at || '-')}</span>
+                            <span class="wallet-tag">创建 ${escapeHtml(toLocalText(item.created_at || ''))}</span>
                         </div>
                     </div>`;
                 });
@@ -7878,13 +8085,13 @@
                     return `<div class="wallet-item">
                         <div class="wallet-item-top">
                             <span class="wallet-item-title">${escapeHtml(item.endpoint || '-')} · ${escapeHtml(item.model || '-')}</span>
-                            <span class="wallet-tag ${normalizeStatusClass(status)}">${escapeHtml(status)}</span>
+                            <span class="wallet-tag ${normalizeStatusClass(status)}">${escapeHtml(humanizeStatus(status, 'usage'))}</span>
                         </div>
                         <div class="wallet-item-meta">
                             <span class="wallet-tag">总 Token ${escapeHtml(item.total_tokens || 0)}</span>
                             <span class="wallet-tag">预占 ${escapeHtml(item.coins_reserved || 0)} 代币</span>
                             <span class="wallet-tag">实扣 ${escapeHtml(item.coins_charged || 0)} 代币</span>
-                            <span class="wallet-tag">${escapeHtml(item.created_at || '-')}</span>
+                            <span class="wallet-tag">${escapeHtml(toLocalText(item.created_at || ''))}</span>
                         </div>
                     </div>`;
                 });
@@ -7894,7 +8101,7 @@
                 setStatus('正在加载钱包信息...');
                 try {
                     const response = await fetch('/wallet/summary');
-                    const data = await response.json();
+                    const data = await readJsonSafely(response);
                     if (!response.ok) throw new Error(data.error || '加载钱包信息失败');
 
                     if (availableEl) availableEl.textContent = `${data.wallet.available_coins} 代币`;
@@ -7926,7 +8133,7 @@
                 setStatus('正在加载小说归档...');
                 try {
                     const response = await fetch('/wallet/exported-articles?days=7');
-                    const data = await response.json();
+                    const data = await readJsonSafely(response);
                     if (!response.ok) throw new Error(data.error || '加载小说归档失败');
 
                     exportsSource = data.items || [];
@@ -7998,7 +8205,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ amount_yuan: raw })
                     });
-                    const data = await response.json();
+                    const data = await readJsonSafely(response);
                     if (!response.ok) throw new Error(data.error || '创建订单失败');
 
                     resultEl.style.display = 'block';
@@ -9033,8 +9240,17 @@
             const canvas = document.getElementById('mindmap-canvas');
             let jm = null;
 
-            topic.value = state.mindmapTopic || '';
+            const rootTopicFromData = ((state.mindmapData || {}).data || {}).topic || '';
+            const defaultTopic = String(
+                state.mindmapTopic || rootTopicFromData || state.plot || state.outline || '小说创作主题'
+            ).trim();
+
+            topic.value = defaultTopic;
             result.value = state.mindmapResult || '';
+
+            if (!state.mindmapTopic && defaultTopic) {
+                saveState({ mindmapTopic: defaultTopic });
+            }
 
             function defaultMindData() {
                 const rootTopic = topic.value.trim() || '小说创作主题';

@@ -197,6 +197,7 @@
 
             if (img) img.addEventListener('click', refreshCaptcha);
             if (btn) btn.addEventListener('click', refreshCaptcha);
+            refreshCaptcha();
             if (forgotPasswordLink) {
                 forgotPasswordLink.addEventListener('click', (event) => {
                     event.preventDefault();
