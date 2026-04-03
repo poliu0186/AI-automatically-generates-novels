@@ -10,6 +10,17 @@ from app.models import UserMessage
 main_bp = Blueprint('main', __name__)
 
 
+USER_MESSAGE_TYPE_OPTIONS = [
+    ('bug', '问题反馈'),
+    ('feature', '功能建议'),
+    ('billing', '充值/账单问题'),
+    ('account', '账号与登录问题'),
+    ('performance', '性能与卡顿问题'),
+    ('other', '其他问题'),
+]
+USER_MESSAGE_TYPE_LABELS = {key: label for key, label in USER_MESSAGE_TYPE_OPTIONS}
+
+
 @main_bp.route('/')
 def home():
     if not current_user.is_authenticated:
@@ -75,14 +86,16 @@ def user_messages():
         return redirect(url_for('admin.admin_dashboard', tab='messages'))
 
     if request.method == 'POST':
-        subject = (request.form.get('subject') or '').strip()
+        message_type = (request.form.get('message_type') or '').strip()
         content = (request.form.get('content') or '').strip()
 
-        if not subject:
-            flash('请填写问题主题。', 'danger')
+        if message_type not in USER_MESSAGE_TYPE_LABELS:
+            flash('请选择有效的消息类型。', 'danger')
         elif not content:
             flash('请填写问题内容。', 'danger')
         else:
+            subject = USER_MESSAGE_TYPE_LABELS.get(message_type, '其他问题')
+
             db.session.add(
                 UserMessage(
                     user_id=current_user.id,
@@ -103,7 +116,12 @@ def user_messages():
         db.session.commit()
 
     messages = UserMessage.query.filter_by(user_id=current_user.id).order_by(UserMessage.created_at.desc()).limit(100).all()
-    return render_template('messages.html', user=current_user, messages=messages)
+    return render_template(
+        'messages.html',
+        user=current_user,
+        messages=messages,
+        message_type_options=USER_MESSAGE_TYPE_OPTIONS,
+    )
 
 
 @main_bp.route('/media/jpg/<path:filename>')

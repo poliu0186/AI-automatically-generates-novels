@@ -4727,14 +4727,28 @@
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
                     <select id="max-editor-action-select" style="min-width:220px;max-width:320px;background:var(--field-bg);color:var(--ink);border:1px solid var(--soft-border);">${actionOptionsHtml}</select>
                     <button type="button" id="btn-max-editor-ai">执行 AI 编辑</button>
+                    ${restoreButtonHtml}
                     <button type="button" id="btn-max-editor-undo">撤销</button>
                     <button type="button" id="btn-max-editor-redo">重做</button>
+                    <button type="button" id="btn-max-editor-toggle-line-numbers">隐藏行号</button>
                     ${exportButtonHtml}
-                    ${restoreButtonHtml}
                 </div>
+                <div style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) auto auto auto auto 112px;gap:8px;align-items:center;margin-bottom:10px;">
+                    <input id="max-editor-search-input" type="text" placeholder="查找内容" style="min-width:0;background:var(--field-bg);color:var(--ink);border:1px solid var(--soft-border);border-radius:8px;padding:8px 10px;">
+                    <input id="max-editor-replace-input" type="text" placeholder="替换为" style="min-width:0;background:var(--field-bg);color:var(--ink);border:1px solid var(--soft-border);border-radius:8px;padding:8px 10px;">
+                    <button type="button" id="btn-max-editor-find-all" style="white-space:nowrap;">查找全部</button>
+                    <button type="button" id="btn-max-editor-find-next" style="white-space:nowrap;">查找下一个</button>
+                    <button type="button" id="btn-max-editor-replace-one" style="white-space:nowrap;">替换当前</button>
+                    <button type="button" id="btn-max-editor-replace-all" style="white-space:nowrap;">全部替换</button>
+                    <span id="max-editor-search-meta" style="font-size:12px;color:var(--muted);background:var(--soft-panel-2);padding:6px 8px;border-radius:999px;border:1px solid var(--soft-border);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">请输入查找</span>
+                </div>
+                <div id="max-editor-search-highlights" style="display:none;max-height:132px;overflow:auto;border:1px solid var(--soft-border);border-radius:10px;padding:6px;background:var(--soft-panel);margin-bottom:10px;"></div>
                 <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${escapeHtml(emptyStateText || '选中文本后可直接执行 AI 编辑；修改会实时同步到章节页。')}</div>
                 <div id="max-editor-status" style="min-height:20px;margin-bottom:8px;font-size:13px;color:var(--danger);"></div>
-                <textarea id="max-editor-textarea" style="flex:1;min-height:0;width:100%;padding:14px;border:1px solid var(--soft-border);border-radius:10px;font-size:15px;line-height:1.8;resize:none;background:var(--field-bg);color:var(--ink);"></textarea>
+                <div id="max-editor-textarea-wrap" style="flex:1;min-height:0;width:100%;display:flex;border:1px solid var(--soft-border);border-radius:10px;overflow:hidden;background:var(--field-bg);">
+                    <div id="max-editor-line-numbers" aria-hidden="true" style="width:62px;min-width:62px;overflow:hidden;border-right:1px solid var(--soft-border);background:var(--soft-panel-2);padding:14px 0 14px 0;"></div>
+                    <textarea id="max-editor-textarea" style="flex:1;min-height:0;width:100%;padding:14px;border:none;border-radius:0;font-size:15px;line-height:1.8;resize:none;background:var(--field-bg);color:var(--ink);"></textarea>
+                </div>
             `;
 
             overlay.appendChild(panel);
@@ -4745,6 +4759,7 @@
             const textarea = panel.querySelector('#max-editor-textarea');
             const closeBtn = panel.querySelector('#btn-max-editor-close');
             const saveBtn = panel.querySelector('#btn-max-editor-save');
+            const toggleLineNumbersBtn = panel.querySelector('#btn-max-editor-toggle-line-numbers');
             const browserFullscreenBtn = panel.querySelector('#btn-max-editor-browser-fullscreen');
             const aiBtn = panel.querySelector('#btn-max-editor-ai');
             const actionSelect = panel.querySelector('#max-editor-action-select');
@@ -4752,8 +4767,23 @@
             const redoBtn = panel.querySelector('#btn-max-editor-redo');
             const exportBtn = panel.querySelector('#btn-max-editor-export');
             const restoreBtn = panel.querySelector('#btn-max-editor-restore');
+            const searchInput = panel.querySelector('#max-editor-search-input');
+            const replaceInput = panel.querySelector('#max-editor-replace-input');
+            const findAllBtn = panel.querySelector('#btn-max-editor-find-all');
+            const findNextBtn = panel.querySelector('#btn-max-editor-find-next');
+            const replaceOneBtn = panel.querySelector('#btn-max-editor-replace-one');
+            const replaceAllBtn = panel.querySelector('#btn-max-editor-replace-all');
+            const searchMetaEl = panel.querySelector('#max-editor-search-meta');
+            const searchHighlightsEl = panel.querySelector('#max-editor-search-highlights');
+            const textareaWrapEl = panel.querySelector('#max-editor-textarea-wrap');
+            const lineNumbersEl = panel.querySelector('#max-editor-line-numbers');
             const wordCountEl = panel.querySelector('#max-editor-word-count');
             const statusEl = panel.querySelector('#max-editor-status');
+
+            let activeMatchPosition = -1;
+            let activeLineNumber = -1;
+            let lineNumbersVisible = true;
+            let showSearchHighlights = false;
 
             textarea.value = initialValue || '';
             attachTextareaHistory(textarea);
@@ -4769,6 +4799,384 @@
                 if (!wordCountEl) return;
                 const length = (textarea.value || '').trim().length;
                 wordCountEl.textContent = `${length} 字`;
+            }
+
+            function escapeRegExp(text) {
+                return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            function getSearchKeyword() {
+                return String(searchInput && searchInput.value || '');
+            }
+
+            function getSearchPositions(content, keyword) {
+                const safeKeyword = String(keyword || '');
+                if (!safeKeyword) return [];
+                const source = String(content || '').toLowerCase();
+                const needle = safeKeyword.toLowerCase();
+                if (!needle) return [];
+                const positions = [];
+                let cursor = 0;
+                while (cursor <= source.length - needle.length) {
+                    const index = source.indexOf(needle, cursor);
+                    if (index === -1) break;
+                    positions.push(index);
+                    cursor = index + needle.length;
+                }
+                return positions;
+            }
+
+            function jumpToMatch(position, keywordLength) {
+                const start = Math.max(0, Number(position) || 0);
+                const end = start + Math.max(0, Number(keywordLength) || 0);
+                const lineNumber = getLineNumberByPosition(textarea.value || '', start);
+                textarea.focus();
+                textarea.setSelectionRange(start, end);
+                scrollTextareaToCaret(start);
+                updateSearchMeta(start, true);
+                updateActiveLineNumber();
+            }
+
+            function getLineNumberByPosition(content, position) {
+                return String(content || '').slice(0, Math.max(0, Number(position) || 0)).split('\n').length;
+            }
+
+            function scrollTextareaToLine(lineNumber) {
+                const targetLine = Math.max(1, Number(lineNumber) || 1);
+                const lineHeight = 27;
+                const targetTop = (targetLine - 1) * lineHeight;
+                const viewport = Math.max(0, textarea.clientHeight || 0);
+                const centeredTop = Math.max(0, targetTop - Math.max(0, (viewport - lineHeight) / 2));
+                textarea.scrollTop = centeredTop;
+                if (lineNumbersEl) lineNumbersEl.scrollTop = centeredTop;
+            }
+
+            function getCaretTopByMirror(position) {
+                const value = String(textarea.value || '');
+                const safePos = Math.max(0, Math.min(value.length, Number(position) || 0));
+                const before = value.slice(0, safePos);
+                const style = window.getComputedStyle(textarea);
+                const mirror = document.createElement('div');
+                mirror.style.position = 'absolute';
+                mirror.style.visibility = 'hidden';
+                mirror.style.left = '-99999px';
+                mirror.style.top = '0';
+                mirror.style.whiteSpace = 'pre-wrap';
+                mirror.style.wordBreak = 'break-word';
+                mirror.style.overflowWrap = 'break-word';
+                mirror.style.boxSizing = 'border-box';
+                mirror.style.width = `${textarea.clientWidth}px`;
+                mirror.style.fontFamily = style.fontFamily;
+                mirror.style.fontSize = style.fontSize;
+                mirror.style.fontWeight = style.fontWeight;
+                mirror.style.lineHeight = style.lineHeight;
+                mirror.style.letterSpacing = style.letterSpacing;
+                mirror.style.paddingTop = style.paddingTop;
+                mirror.style.paddingRight = style.paddingRight;
+                mirror.style.paddingBottom = style.paddingBottom;
+                mirror.style.paddingLeft = style.paddingLeft;
+
+                const marker = document.createElement('span');
+                marker.textContent = '\u200b';
+                mirror.textContent = before;
+                mirror.appendChild(marker);
+                document.body.appendChild(mirror);
+                const top = marker.offsetTop;
+                mirror.remove();
+                return top;
+            }
+
+            function scrollTextareaToCaret(position) {
+                const caretTop = getCaretTopByMirror(position);
+                const lineHeight = 27;
+                const viewport = Math.max(0, textarea.clientHeight || 0);
+                const centeredTop = Math.max(0, caretTop - Math.max(0, (viewport - lineHeight) / 2));
+                textarea.scrollTop = centeredTop;
+                if (lineNumbersEl) lineNumbersEl.scrollTop = centeredTop;
+            }
+
+            function updateActiveLineHighlight(lineNumber) {
+                if (!lineNumbersEl || lineNumber === activeLineNumber) return;
+                if (activeLineNumber > 0) {
+                    const previous = lineNumbersEl.querySelector(`[data-line-number="${activeLineNumber}"]`);
+                    if (previous) {
+                        previous.style.background = 'transparent';
+                        previous.style.color = 'var(--muted)';
+                        previous.style.fontWeight = '500';
+                    }
+                }
+                activeLineNumber = lineNumber;
+                if (activeLineNumber > 0) {
+                    const current = lineNumbersEl.querySelector(`[data-line-number="${activeLineNumber}"]`);
+                    if (current) {
+                        current.style.background = 'var(--soft-panel-3)';
+                        current.style.color = 'var(--ink)';
+                        current.style.fontWeight = '700';
+                    }
+                }
+            }
+
+            function renderLineNumbers() {
+                if (!lineNumbersEl) return;
+                const content = String(textarea.value || '');
+                const lineCount = Math.max(1, content.split('\n').length);
+                const rows = [];
+                for (let i = 1; i <= lineCount; i += 1) {
+                    rows.push(`<div data-line-number="${i}" style="height:27px;line-height:27px;padding:0 10px 0 6px;text-align:right;font-size:12px;color:var(--muted);font-weight:500;">${i}</div>`);
+                }
+                lineNumbersEl.innerHTML = rows.join('');
+                lineNumbersEl.scrollTop = textarea.scrollTop;
+                updateActiveLineHighlight(getLineNumberByPosition(content, textarea.selectionStart));
+            }
+
+            function setLineNumbersVisible(visible) {
+                lineNumbersVisible = Boolean(visible);
+                if (!lineNumbersEl || !toggleLineNumbersBtn) return;
+                lineNumbersEl.style.display = lineNumbersVisible ? 'block' : 'none';
+                toggleLineNumbersBtn.textContent = lineNumbersVisible ? '隐藏行号' : '显示行号';
+                if (textareaWrapEl) {
+                    textareaWrapEl.style.gridTemplateColumns = lineNumbersVisible ? '' : '';
+                }
+            }
+
+            function updateActiveLineNumber() {
+                updateActiveLineHighlight(getLineNumberByPosition(textarea.value || '', textarea.selectionStart));
+            }
+
+            function updateActiveMatchHighlight(shouldScroll = false) {
+                if (!searchHighlightsEl) return;
+                const buttons = searchHighlightsEl.querySelectorAll('[data-match-pos]');
+                let activeButton = null;
+                buttons.forEach((button) => {
+                    const matchPos = Number(button.getAttribute('data-match-pos'));
+                    const isActive = Number.isFinite(matchPos) && matchPos === activeMatchPosition;
+                    button.style.borderColor = isActive ? 'var(--brand)' : 'var(--soft-border)';
+                    button.style.background = isActive ? 'var(--soft-panel-2)' : 'var(--panel)';
+                    if (isActive) activeButton = button;
+                });
+                if (shouldScroll && activeButton && typeof activeButton.scrollIntoView === 'function') {
+                    activeButton.scrollIntoView({ block: 'nearest' });
+                }
+            }
+
+            function getLineInfoByPosition(content, position) {
+                const normalized = String(content || '');
+                const start = normalized.lastIndexOf('\n', Math.max(0, position - 1)) + 1;
+                let end = normalized.indexOf('\n', position);
+                if (end === -1) end = normalized.length;
+                const lineText = normalized.slice(start, end).replace(/\r/g, '');
+                const lineNumber = normalized.slice(0, start).split('\n').length;
+                return {
+                    lineNumber,
+                    lineText,
+                    matchOffset: Math.max(0, position - start)
+                };
+            }
+
+            function getLinePreviewParts(lineText, matchOffset, keywordLength, maxLength = 80) {
+                const safeLine = String(lineText || '');
+                if (safeLine.length <= maxLength) {
+                    return {
+                        left: safeLine.slice(0, matchOffset),
+                        hit: safeLine.slice(matchOffset, matchOffset + keywordLength),
+                        right: safeLine.slice(matchOffset + keywordLength),
+                        leftDots: '',
+                        rightDots: ''
+                    };
+                }
+
+                const leftWindow = 28;
+                const rightWindow = Math.max(20, maxLength - leftWindow - keywordLength);
+                const viewStart = Math.max(0, matchOffset - leftWindow);
+                const viewEnd = Math.min(safeLine.length, matchOffset + keywordLength + rightWindow);
+                const localMatch = matchOffset - viewStart;
+                const clip = safeLine.slice(viewStart, viewEnd);
+                return {
+                    left: clip.slice(0, localMatch),
+                    hit: clip.slice(localMatch, localMatch + keywordLength),
+                    right: clip.slice(localMatch + keywordLength),
+                    leftDots: viewStart > 0 ? '...' : '',
+                    rightDots: viewEnd < safeLine.length ? '...' : ''
+                };
+            }
+
+            function renderSearchHighlights() {
+                if (!searchHighlightsEl) return;
+                const keyword = getSearchKeyword();
+                if (!showSearchHighlights || !keyword) {
+                    searchHighlightsEl.style.display = 'none';
+                    searchHighlightsEl.innerHTML = '';
+                    return;
+                }
+
+                const content = String(textarea.value || '');
+                const positions = getSearchPositions(content, keyword);
+                if (!positions.length) {
+                    searchHighlightsEl.style.display = 'none';
+                    searchHighlightsEl.innerHTML = '';
+                    return;
+                }
+
+                const maxPreviewCount = 120;
+                const previewItems = positions.slice(0, maxPreviewCount).map((position, idx) => {
+                    const lineInfo = getLineInfoByPosition(content, position);
+                    const parts = getLinePreviewParts(lineInfo.lineText, lineInfo.matchOffset, keyword.length);
+                    const leftText = escapeHtml(parts.left);
+                    const hitText = escapeHtml(parts.hit);
+                    const rightText = escapeHtml(parts.right);
+                    return `
+                        <button type="button" data-match-pos="${position}" style="width:100%;text-align:left;border:1px solid var(--soft-border);border-radius:8px;background:var(--panel);color:var(--ink);padding:6px 8px;margin:4px 0;cursor:pointer;">
+                            <span style="font-size:12px;color:var(--muted);margin-right:8px;">#${idx + 1} · 第 ${lineInfo.lineNumber} 行</span>
+                            <span style="font-size:12px;line-height:1.5;">${parts.leftDots}${leftText}<mark style="background:#ffd857;color:#2a1b00;padding:0 1px;border-radius:2px;">${hitText}</mark>${rightText}${parts.rightDots}</span>
+                        </button>
+                    `;
+                }).join('');
+
+                const summary = positions.length > maxPreviewCount
+                    ? `<div style="font-size:12px;color:var(--muted);padding:4px 6px;">已显示前 ${maxPreviewCount} 处，共 ${positions.length} 处匹配</div>`
+                    : '';
+
+                searchHighlightsEl.style.display = 'block';
+                searchHighlightsEl.innerHTML = `${previewItems}${summary}`;
+                updateActiveMatchHighlight();
+            }
+
+            function updateSearchMeta(activePosition = -1, scrollActive = false) {
+                if (!searchMetaEl) return;
+                const keyword = getSearchKeyword();
+                if (!keyword) {
+                    activeMatchPosition = -1;
+                    searchMetaEl.textContent = '请输入查找';
+                    renderSearchHighlights();
+                    return;
+                }
+                const positions = getSearchPositions(textarea.value || '', keyword);
+                if (!positions.length) {
+                    activeMatchPosition = -1;
+                    searchMetaEl.textContent = '未找到匹配';
+                    renderSearchHighlights();
+                    return;
+                }
+                if (activePosition >= 0) {
+                    activeMatchPosition = activePosition;
+                }
+                const effectiveActive = activeMatchPosition >= 0 ? activeMatchPosition : -1;
+                if (effectiveActive >= 0) {
+                    const activeIndex = positions.indexOf(effectiveActive);
+                    if (activeIndex >= 0) {
+                        searchMetaEl.textContent = `${activeIndex + 1}/${positions.length}`;
+                        renderSearchHighlights();
+                        updateActiveMatchHighlight(scrollActive);
+                        return;
+                    }
+                }
+                searchMetaEl.textContent = `${positions.length} 处匹配`;
+                renderSearchHighlights();
+                updateActiveMatchHighlight(scrollActive);
+            }
+
+            function findNextMatch() {
+                const keyword = getSearchKeyword();
+                if (!keyword) {
+                    setMaxEditorStatus('请先输入查找内容', 'error');
+                    if (searchInput) searchInput.focus();
+                    updateSearchMeta();
+                    return false;
+                }
+                const positions = getSearchPositions(textarea.value || '', keyword);
+                if (!positions.length) {
+                    setMaxEditorStatus('未找到匹配内容', 'error');
+                    updateSearchMeta();
+                    return false;
+                }
+
+                const cursor = Math.max(0, Number(textarea.selectionEnd) || 0);
+                let nextPosition = positions.find((item) => item >= cursor);
+                if (typeof nextPosition !== 'number') {
+                    nextPosition = positions[0];
+                }
+                jumpToMatch(nextPosition, keyword.length);
+                setMaxEditorStatus('');
+                return true;
+            }
+
+            function findAllMatches() {
+                const keyword = getSearchKeyword();
+                if (!keyword) {
+                    setMaxEditorStatus('请先输入查找内容', 'error');
+                    if (searchInput) searchInput.focus();
+                    showSearchHighlights = false;
+                    updateSearchMeta();
+                    return;
+                }
+                showSearchHighlights = true;
+                const positions = getSearchPositions(textarea.value || '', keyword);
+                if (!positions.length) {
+                    setMaxEditorStatus('未找到匹配内容', 'error');
+                    updateSearchMeta();
+                    return;
+                }
+                setMaxEditorStatus(`共找到 ${positions.length} 处匹配`);
+                jumpToMatch(positions[0], keyword.length);
+            }
+
+            function isSelectionMatchedKeyword(keyword) {
+                const start = Number(textarea.selectionStart) || 0;
+                const end = Number(textarea.selectionEnd) || 0;
+                if (end <= start) return false;
+                const selected = String((textarea.value || '').slice(start, end));
+                if (selected.length !== keyword.length) return false;
+                return selected.toLowerCase() === keyword.toLowerCase();
+            }
+
+            function replaceCurrentMatch() {
+                const keyword = getSearchKeyword();
+                if (!keyword) {
+                    setMaxEditorStatus('请先输入查找内容', 'error');
+                    if (searchInput) searchInput.focus();
+                    updateSearchMeta();
+                    return;
+                }
+                if (!isSelectionMatchedKeyword(keyword) && !findNextMatch()) {
+                    return;
+                }
+
+                const start = Number(textarea.selectionStart) || 0;
+                const end = Number(textarea.selectionEnd) || 0;
+                const replacement = String(replaceInput && replaceInput.value || '');
+                textarea.setRangeText(replacement, start, end, 'end');
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+                const nextPositions = getSearchPositions(textarea.value || '', keyword);
+                updateSearchMeta(nextPositions.length ? nextPositions[0] : -1);
+                setMaxEditorStatus('已替换当前匹配');
+                findNextMatch();
+            }
+
+            function replaceAllMatches() {
+                const keyword = getSearchKeyword();
+                if (!keyword) {
+                    setMaxEditorStatus('请先输入查找内容', 'error');
+                    if (searchInput) searchInput.focus();
+                    updateSearchMeta();
+                    return;
+                }
+
+                const positions = getSearchPositions(textarea.value || '', keyword);
+                if (!positions.length) {
+                    setMaxEditorStatus('未找到可替换内容', 'error');
+                    updateSearchMeta();
+                    return;
+                }
+
+                const flags = 'gi';
+                const pattern = new RegExp(escapeRegExp(keyword), flags);
+                const replacement = String(replaceInput && replaceInput.value || '');
+                const replaced = String(textarea.value || '').replace(pattern, replacement);
+                setTextareaValueWithHistory(textarea, replaced);
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                updateSearchMeta();
+                setMaxEditorStatus(`已替换 ${positions.length} 处匹配`);
             }
 
             function isBrowserFullscreenActive() {
@@ -4820,13 +5228,28 @@
 
             textarea.addEventListener('input', () => {
                 updateWordCount();
+                updateSearchMeta();
+                renderLineNumbers();
                 if (statusEl && statusEl.textContent) {
                     setMaxEditorStatus('');
                 }
                 if (typeof onChange === 'function') onChange(textarea.value, textarea);
             });
+            textarea.addEventListener('scroll', () => {
+                if (lineNumbersEl) lineNumbersEl.scrollTop = textarea.scrollTop;
+            });
+            textarea.addEventListener('click', updateActiveLineNumber);
+            textarea.addEventListener('keyup', updateActiveLineNumber);
             updateWordCount();
+            updateSearchMeta();
+            renderLineNumbers();
+            setLineNumbersVisible(false);
             if (closeBtn) closeBtn.addEventListener('click', close);
+            if (toggleLineNumbersBtn) {
+                toggleLineNumbersBtn.addEventListener('click', () => {
+                    setLineNumbersVisible(!lineNumbersVisible);
+                });
+            }
             if (browserFullscreenBtn) {
                 browserFullscreenBtn.addEventListener('click', async () => {
                     try {
@@ -4845,6 +5268,33 @@
             }
             if (undoBtn) undoBtn.addEventListener('click', () => undoTextarea(textarea));
             if (redoBtn) redoBtn.addEventListener('click', () => redoTextarea(textarea));
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    showSearchHighlights = false;
+                    updateSearchMeta();
+                });
+                searchInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        findNextMatch();
+                    }
+                });
+            }
+            if (findAllBtn) findAllBtn.addEventListener('click', findAllMatches);
+            if (findNextBtn) findNextBtn.addEventListener('click', findNextMatch);
+            if (replaceOneBtn) replaceOneBtn.addEventListener('click', replaceCurrentMatch);
+            if (replaceAllBtn) replaceAllBtn.addEventListener('click', replaceAllMatches);
+            if (searchHighlightsEl) {
+                searchHighlightsEl.addEventListener('click', (event) => {
+                    const target = event.target && event.target.closest('[data-match-pos]');
+                    if (!target) return;
+                    const keyword = getSearchKeyword();
+                    if (!keyword) return;
+                    const matchPos = Number(target.getAttribute('data-match-pos'));
+                    if (!Number.isFinite(matchPos)) return;
+                    jumpToMatch(matchPos, keyword.length);
+                });
+            }
             if (exportBtn) {
                 exportBtn.addEventListener('click', () => {
                     const text = String(textarea.value || '');
@@ -4883,6 +5333,26 @@
             if (restoreBtn) restoreBtn.addEventListener('click', () => {
                 if (typeof onRestoreDefault === 'function') onRestoreDefault(textarea);
                 updateWordCount();
+                updateSearchMeta();
+                renderLineNumbers();
+            });
+            panel.addEventListener('keydown', (event) => {
+                if (!(event.ctrlKey || event.metaKey)) return;
+                if (event.key === 'f' || event.key === 'F') {
+                    event.preventDefault();
+                    if (searchInput) {
+                        searchInput.focus();
+                        searchInput.select();
+                    }
+                    return;
+                }
+                if (event.key === 'h' || event.key === 'H') {
+                    event.preventDefault();
+                    if (replaceInput) {
+                        replaceInput.focus();
+                        replaceInput.select();
+                    }
+                }
             });
             overlay.addEventListener('click', (event) => {
                 if (event.target === overlay) close();

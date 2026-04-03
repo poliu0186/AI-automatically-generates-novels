@@ -102,12 +102,17 @@
         {% endwith %}
         <form method="post">
             <div class="field">
-                <label for="subject">问题主题</label>
-                <input id="subject" name="subject" type="text" maxlength="120" required placeholder="例如：导出报错 / 充值不到账 / 页面卡顿">
+                <label for="message_type">消息类型</label>
+                <select id="message_type" name="message_type" required style="width:100%;border:1px solid #304160;border-radius:10px;background:#0e1626;color:var(--ink);padding:10px 12px;font-size:14px;">
+                    {% set selected_type = request.form.get('message_type', 'bug') %}
+                    {% for option_value, option_label in message_type_options %}
+                    <option value="{{ option_value }}" {% if selected_type == option_value %}selected{% endif %}>{{ option_label }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="field">
                 <label for="content">问题内容</label>
-                <textarea id="content" name="content" maxlength="4000" required placeholder="请描述具体操作步骤、报错信息、出现时间，方便管理员快速定位问题。"></textarea>
+                <textarea id="content" name="content" maxlength="4000" required placeholder="请在这里详细描述：操作步骤、报错信息、出现时间、你的预期结果。主题类型已在上方选择。">{{ request.form.get('content', '') }}</textarea>
             </div>
             <button class="btn" type="submit">发送给管理员</button>
         </form>
