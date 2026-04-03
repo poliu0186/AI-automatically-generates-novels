@@ -15,10 +15,8 @@
             window.__applyWorkspaceTheme = applyTheme;
 
             window.addEventListener('message', (event) => {
-                if (event.origin !== window.location.origin) return;
-                if (event.data && event.data.type === 'workspace-theme') {
-                    applyTheme(event.data.theme);
-                }
+                if (!event || !event.data || event.data.type !== 'workspace-theme') return;
+                applyTheme(event.data.theme);
             });
 
             window.addEventListener('storage', (event) => {
@@ -188,6 +186,7 @@
             border-radius: 8px;
             padding: 8px 10px;
             background: #f9fcff;
+            position: relative;
         }
 
         .strategy-option.has-numeric {
@@ -225,6 +224,47 @@
 
         .strategy-option .remove-custom-btn:hover {
             background: #ffecec;
+        }
+
+        .strategy-option .strategy-edit-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            border: 1px solid #c7d8e8;
+            color: #4f6f8b;
+            background: #f8fbff;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            line-height: 1.2;
+            z-index: 2;
+            opacity: 0;
+            transform: translateY(-2px);
+            pointer-events: none;
+            transition: opacity .16s ease, transform .16s ease;
+        }
+
+        .strategy-option:hover .strategy-edit-btn,
+        .strategy-option:focus-within .strategy-edit-btn,
+        .strategy-option .strategy-edit-btn.always-visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .strategy-option .strategy-lock-tag {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            border: 1px solid #d8dee6;
+            color: #72839a;
+            background: #f4f7fb;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 12px;
+            line-height: 1.2;
+            user-select: none;
         }
 
         .strategy-number-editor {
@@ -3556,8 +3596,6 @@
                 chapter: '章节',
                 content: '正文'
             };
-            let activeNumericEditKey = '';
-            const numericEditDraft = {};
 
             const stageDefaultTemplates = {
                 outline: [
@@ -3599,6 +3637,11 @@
                     chapter: [],
                     content: []
                 },
+                textOverrides: {
+                    outline: {},
+                    chapter: {},
+                    content: {}
+                },
                 numericOverrides: {
                     outline: {},
                     chapter: {},
@@ -3623,6 +3666,10 @@
                     ...strategyDefaults.customStageStrategies,
                     ...((state.promptStrategy && state.promptStrategy.customStageStrategies) || {})
                 },
+                textOverrides: {
+                    ...strategyDefaults.textOverrides,
+                    ...((state.promptStrategy && state.promptStrategy.textOverrides) || {})
+                },
                 numericOverrides: {
                     ...strategyDefaults.numericOverrides,
                     ...((state.promptStrategy && state.promptStrategy.numericOverrides) || {})
@@ -3630,6 +3677,18 @@
             };
             let manualPromptsEditable = false;
             let manualPromptSaveTimer = null;
+            let activeTextEditKey = '';
+            const textEditDraft = {};
+
+            const protectedStrategyRules = {
+                chapter: {
+                    5: {
+                        editable: false,
+                        requiredTokens: ['###fenge'],
+                        hint: '结构保护项（不可编辑）'
+                    }
+                }
+            };
 
             function syncDefaultStrategyNumbers() {
                 // 大纲策略-输出要求（默认模板第 6 条）默认整数
@@ -3716,6 +3775,26 @@
                 return rowOverrides[String(numberIndex)] || '';
             }
 
+            function getStageTextOverride(stageKey, defaultIndex) {
+                const stageOverrides = strategy.textOverrides[stageKey] || {};
+                return stageOverrides[String(defaultIndex)] || '';
+            }
+
+            function setStageTextOverride(stageKey, defaultIndex, value) {
+                if (!strategy.textOverrides[stageKey]) strategy.textOverrides[stageKey] = {};
+                strategy.textOverrides[stageKey][String(defaultIndex)] = value;
+            }
+
+            function clearStageTextOverride(stageKey, defaultIndex) {
+                const stageOverrides = strategy.textOverrides[stageKey];
+                if (!stageOverrides) return;
+                delete stageOverrides[String(defaultIndex)];
+            }
+
+            function getProtectedStrategyRule(stageKey, defaultIndex) {
+                return (((protectedStrategyRules || {})[stageKey] || {})[defaultIndex]) || null;
+            }
+
             function setStageNumberOverride(stageKey, defaultIndex, numberIndex, value) {
                 if (!strategy.numericOverrides[stageKey]) strategy.numericOverrides[stageKey] = {};
                 if (!strategy.numericOverrides[stageKey][String(defaultIndex)]) {
@@ -3739,13 +3818,40 @@
                 return `${stageKey}:${defaultIndex}`;
             }
 
-            function getDefaultTextWithOverrides(stageKey, defaultIndex) {
+            function getDefaultTextWithNumberOverrides(stageKey, defaultIndex) {
                 const template = (stageDefaultTemplates[stageKey] || [])[defaultIndex] || '';
                 let numberCursor = 0;
                 return template.replace(/\d+/g, (matched) => {
                     const override = getStageNumberOverride(stageKey, defaultIndex, numberCursor);
                     numberCursor += 1;
                     return override || matched;
+                });
+            }
+
+            function getDefaultTextWithOverrides(stageKey, defaultIndex) {
+                const base = getDefaultTextWithNumberOverrides(stageKey, defaultIndex);
+                const protectedRule = getProtectedStrategyRule(stageKey, defaultIndex);
+                if (protectedRule && protectedRule.editable === false) {
+                    return base;
+                }
+                const textOverride = getStageTextOverride(stageKey, defaultIndex);
+                return textOverride || base;
+            }
+
+            function sanitizeProtectedStrategyOverrides() {
+                ['outline', 'chapter', 'content'].forEach((stageKey) => {
+                    const selected = normalizeTextList(strategy.selectedStageStrategies[stageKey]);
+                    (stageDefaultTemplates[stageKey] || []).forEach((_, defaultIndex) => {
+                        const protectedRule = getProtectedStrategyRule(stageKey, defaultIndex);
+                        if (!protectedRule || protectedRule.editable !== false) return;
+
+                        const overrideText = getStageTextOverride(stageKey, defaultIndex);
+                        const baseText = getDefaultTextWithNumberOverrides(stageKey, defaultIndex);
+                        if (overrideText) {
+                            clearStageTextOverride(stageKey, defaultIndex);
+                            strategy.selectedStageStrategies[stageKey] = selected.map((item) => (item === overrideText ? baseText : item));
+                        }
+                    });
                 });
             }
 
@@ -3793,108 +3899,100 @@
                     row.appendChild(span);
 
                     if (!item.isCustom && item.defaultIndex >= 0) {
-                        const template = (stageDefaultTemplates[stageKey] || [])[item.defaultIndex] || '';
-                        const numberMatches = Array.from(template.matchAll(/\d+/g));
-                        if (numberMatches.length) {
-                            row.classList.add('has-numeric');
-                            const editKey = makeNumericEditKey(stageKey, item.defaultIndex);
-                            const isEditing = activeNumericEditKey === editKey;
-                            if (isEditing) {
-                                row.classList.add('editing-numeric');
-                            }
+                        const textEditKey = makeNumericEditKey(stageKey, item.defaultIndex);
+                        const textIsEditing = activeTextEditKey === textEditKey;
+                        const protectedRule = getProtectedStrategyRule(stageKey, item.defaultIndex);
+                        const isTextEditable = !(protectedRule && protectedRule.editable === false);
 
-                            if (!isEditing) {
-                                const badges = document.createElement('div');
-                                badges.className = 'strategy-param-badges';
-                                numberMatches.forEach((match, idx) => {
-                                    const badge = document.createElement('span');
-                                    badge.className = 'param-badge';
-                                    const currentValue = getStageNumberOverride(stageKey, item.defaultIndex, idx) || match[0];
-                                    badge.textContent = `[${currentValue}]`;
-                                    badges.appendChild(badge);
-                                });
+                        if (isTextEditable) {
+                            const editBtn = document.createElement('button');
+                            editBtn.type = 'button';
+                            editBtn.className = `strategy-edit-btn ${textIsEditing ? 'always-visible' : ''}`;
+                            editBtn.textContent = textIsEditing ? '取消' : '编辑';
+                            editBtn.addEventListener('click', () => {
+                                if (textIsEditing) {
+                                    delete textEditDraft[textEditKey];
+                                    activeTextEditKey = '';
+                                } else {
+                                    activeTextEditKey = textEditKey;
+                                    textEditDraft[textEditKey] = getDefaultTextWithOverrides(stageKey, item.defaultIndex);
+                                }
+                                renderStageStrategy(stageKey, containerEl);
+                            });
+                            row.appendChild(editBtn);
+                        }
 
-                                badges.addEventListener('click', () => {
-                                    activeNumericEditKey = editKey;
-                                    numericEditDraft[editKey] = {};
-                                    numberMatches.forEach((match, idx) => {
-                                        numericEditDraft[editKey][String(idx)] = getStageNumberOverride(stageKey, item.defaultIndex, idx) || match[0];
-                                    });
-                                    renderStageStrategy(stageKey, containerEl);
-                                });
-                                row.appendChild(badges);
-                            } else {
-                                const editor = document.createElement('div');
-                                editor.className = 'strategy-number-editor';
+                        if (textIsEditing && isTextEditable) {
+                            const textEditor = document.createElement('div');
+                            textEditor.style.display = 'flex';
+                            textEditor.style.flexDirection = 'column';
+                            textEditor.style.gap = '6px';
+                            textEditor.style.width = '100%';
+                            textEditor.style.marginTop = '8px';
 
-                                numberMatches.forEach((match, idx) => {
-                                    const chip = document.createElement('div');
-                                    chip.className = 'num-chip';
+                            const textInput = document.createElement('textarea');
+                            textInput.style.minHeight = '78px';
+                            textInput.style.width = '100%';
+                            textInput.style.resize = 'vertical';
+                            textInput.value = textEditDraft[textEditKey] || getDefaultTextWithOverrides(stageKey, item.defaultIndex);
+                            textInput.addEventListener('input', () => {
+                                textEditDraft[textEditKey] = textInput.value;
+                            });
 
-                                    const label = document.createElement('span');
-                                    label.textContent = `数字${idx + 1}`;
+                            const textActions = document.createElement('div');
+                            textActions.className = 'strategy-number-actions';
 
-                                    const inputNum = document.createElement('input');
-                                    inputNum.type = 'number';
-                                    inputNum.min = '0';
-                                    inputNum.step = '1';
-                                    inputNum.value = (numericEditDraft[editKey] && numericEditDraft[editKey][String(idx)]) || match[0];
-                                    inputNum.addEventListener('input', () => {
-                                        if (!numericEditDraft[editKey]) numericEditDraft[editKey] = {};
-                                        numericEditDraft[editKey][String(idx)] = (inputNum.value || '').trim();
-                                    });
+                            const textConfirm = document.createElement('button');
+                            textConfirm.type = 'button';
+                            textConfirm.className = 'primary';
+                            textConfirm.textContent = '保存文案';
+                            textConfirm.addEventListener('click', () => {
+                                const prevText = getDefaultTextWithOverrides(stageKey, item.defaultIndex);
+                                const nextText = String(textEditDraft[textEditKey] || '').trim();
+                                if (!nextText) {
+                                    setStatus('策略文案不能为空');
+                                    return;
+                                }
+                                if (protectedRule && Array.isArray(protectedRule.requiredTokens)) {
+                                    const missing = protectedRule.requiredTokens.filter((token) => !nextText.includes(token));
+                                    if (missing.length) {
+                                        setStatus(`该策略为结构保护项，文案中必须保留：${missing.join('、')}`);
+                                        return;
+                                    }
+                                }
 
-                                    chip.appendChild(label);
-                                    chip.appendChild(inputNum);
-                                    editor.appendChild(chip);
-                                });
+                                const baseText = getDefaultTextWithNumberOverrides(stageKey, item.defaultIndex);
+                                if (nextText === baseText) {
+                                    clearStageTextOverride(stageKey, item.defaultIndex);
+                                } else {
+                                    setStageTextOverride(stageKey, item.defaultIndex, nextText);
+                                }
 
-                                const actions = document.createElement('div');
-                                actions.className = 'strategy-number-actions';
+                                const finalText = getDefaultTextWithOverrides(stageKey, item.defaultIndex);
+                                strategy.selectedStageStrategies[stageKey] = normalizeTextList(strategy.selectedStageStrategies[stageKey])
+                                    .map((selectedText) => (selectedText === prevText ? finalText : selectedText));
 
-                                const btnConfirm = document.createElement('button');
-                                btnConfirm.type = 'button';
-                                btnConfirm.textContent = '确认';
-                                btnConfirm.className = 'primary';
-                                btnConfirm.addEventListener('click', () => {
-                                    const prevText = getDefaultTextWithOverrides(stageKey, item.defaultIndex);
-                                    numberMatches.forEach((match, idx) => {
-                                        const raw = (numericEditDraft[editKey] && numericEditDraft[editKey][String(idx)] !== undefined)
-                                            ? numericEditDraft[editKey][String(idx)]
-                                            : (getStageNumberOverride(stageKey, item.defaultIndex, idx) || match[0]);
-                                        const value = String(raw || '').trim();
-                                        if (!value || value === match[0]) {
-                                            clearStageNumberOverride(stageKey, item.defaultIndex, idx);
-                                        } else {
-                                            setStageNumberOverride(stageKey, item.defaultIndex, idx, value);
-                                        }
-                                    });
+                                delete textEditDraft[textEditKey];
+                                activeTextEditKey = '';
+                                renderStageStrategy(stageKey, containerEl);
+                                saveState({ promptStrategy: collectStrategyFromUI() });
+                                setStatus(`已更新${stageLabels[stageKey]}策略文案`);
+                            });
 
-                                    const nextText = getDefaultTextWithOverrides(stageKey, item.defaultIndex);
-                                    strategy.selectedStageStrategies[stageKey] = normalizeTextList(strategy.selectedStageStrategies[stageKey])
-                                        .map((selectedText) => (selectedText === prevText ? nextText : selectedText));
+                            const textCancel = document.createElement('button');
+                            textCancel.type = 'button';
+                            textCancel.textContent = '取消';
+                            textCancel.addEventListener('click', () => {
+                                delete textEditDraft[textEditKey];
+                                activeTextEditKey = '';
+                                renderStageStrategy(stageKey, containerEl);
+                            });
 
-                                    delete numericEditDraft[editKey];
-                                    activeNumericEditKey = '';
-                                    renderStageStrategy(stageKey, containerEl);
-                                    saveState({ promptStrategy: collectStrategyFromUI() });
-                                    setStatus(`已更新${stageLabels[stageKey]}策略中的数字参数`);
-                                });
-
-                                const btnCancel = document.createElement('button');
-                                btnCancel.type = 'button';
-                                btnCancel.textContent = '取消';
-                                btnCancel.addEventListener('click', () => {
-                                    delete numericEditDraft[editKey];
-                                    activeNumericEditKey = '';
-                                    renderStageStrategy(stageKey, containerEl);
-                                });
-
-                                actions.appendChild(btnConfirm);
-                                actions.appendChild(btnCancel);
-                                editor.appendChild(actions);
-                                row.appendChild(editor);
-                            }
+                            textActions.appendChild(textConfirm);
+                            textActions.appendChild(textCancel);
+                            textEditor.appendChild(textInput);
+                            textEditor.appendChild(textActions);
+                            row.appendChild(textEditor);
                         }
                     }
 
@@ -3936,6 +4034,11 @@
                         outline: normalizeTextList(strategy.customStageStrategies.outline),
                         chapter: normalizeTextList(strategy.customStageStrategies.chapter),
                         content: normalizeTextList(strategy.customStageStrategies.content)
+                    },
+                    textOverrides: {
+                        outline: { ...(strategy.textOverrides.outline || {}) },
+                        chapter: { ...(strategy.textOverrides.chapter || {}) },
+                        content: { ...(strategy.textOverrides.content || {}) }
                     },
                     numericOverrides: {
                         outline: { ...(strategy.numericOverrides.outline || {}) },
@@ -4101,6 +4204,7 @@
             setupOptionalSelect(hookStrength, hookStrengthCustom, strategy.hookStrength);
             customRequirements.value = strategy.customRequirements;
             syncDefaultStrategyNumbers();
+            sanitizeProtectedStrategyOverrides();
 
             renderStageStrategy('outline', outlineStrategyList);
             renderStageStrategy('chapter', chapterStrategyList);
@@ -4181,8 +4285,13 @@
                     chapter: {},
                     content: {}
                 };
-                activeNumericEditKey = '';
-                Object.keys(numericEditDraft).forEach((key) => delete numericEditDraft[key]);
+                strategy.textOverrides = {
+                    outline: {},
+                    chapter: {},
+                    content: {}
+                };
+                activeTextEditKey = '';
+                Object.keys(textEditDraft).forEach((key) => delete textEditDraft[key]);
                 strategy.selectedStageStrategies = {
                     outline: stageDefaultTemplates.outline.slice(),
                     chapter: stageDefaultTemplates.chapter.slice(),
