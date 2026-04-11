@@ -505,7 +505,7 @@ def admin_login():
 
             now_ts = int(time.time())
             if now_ts > int(payload.get('expires_at') or 0):
-                _clear_admin_otp_payload()
+                _clear_auth_transient_state()
                 flash('验证码已过期，请重新登录。', 'danger')
                 return render_template('admin_login.html', **_admin_otp_view_model())
 
@@ -515,12 +515,12 @@ def admin_login():
 
             user = User.query.get(int(payload.get('user_id') or 0))
             if not user or not user.is_active or not user.is_admin:
-                _clear_admin_otp_payload()
+                _clear_auth_transient_state()
                 flash('管理员账号状态异常，请联系系统管理员。', 'danger')
                 return render_template('admin_login.html', **_admin_otp_view_model())
 
             next_url = str(payload.get('next') or request.form.get('next') or '')
-            _clear_admin_otp_payload()
+            _clear_auth_transient_state()
             _complete_login(user, action_name='admin_login_success', detail='管理员后台登录成功')
             flash('管理员登录成功。', 'success')
             return _post_login_redirect(user, next_url)
