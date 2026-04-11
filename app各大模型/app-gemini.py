@@ -14,8 +14,11 @@ from collections import deque
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:7890'
-os.environ['HTTP_PROXY'] = 'http://127.0.0.1:7890'
+if os.environ.get('HTTPS_PROXY'):
+    pass  # Use proxy from environment
+elif os.environ.get('GEMINI_HTTPS_PROXY'):
+    os.environ['HTTPS_PROXY'] = os.environ['GEMINI_HTTPS_PROXY']
+    os.environ['HTTP_PROXY'] = os.environ.get('GEMINI_HTTP_PROXY', os.environ['GEMINI_HTTPS_PROXY'])
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -123,7 +126,7 @@ def trigger_smart_placement():
         app.logger.error(f"Error in trigger_smart_placement: {str(e)}")
         return False
 
-GOOGLE_API_KEY = "YOUR-API-KEY"
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', '')  # Set via environment variable
 genai.configure(api_key=GOOGLE_API_KEY)
 
 def init_api():
@@ -296,7 +299,7 @@ def api_info():
     except Exception as e:
         error_info = {
             "error": str(e),
-            "traceback": traceback.format_exc()
+            "traceback": "See server logs for details."
         }
         return Response(
             json.dumps(error_info, indent=2, ensure_ascii=False),
@@ -310,6 +313,6 @@ def api_dashboard():
 
 if __name__ == '__main__':
     if init_api():
-        app.run(debug=True, port=60000, host="0.0.0.0")
+        app.run(debug=os.environ.get('FLASK_DEBUG', '0').lower() in ('1', 'true'), port=60000, host="0.0.0.0")
     else:
-        app.logger.error("Failed to initialize API, service will not start") 
+        app.logger.error("Failed to initialize API, service will not start")  

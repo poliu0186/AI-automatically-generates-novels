@@ -489,7 +489,8 @@ def wallet_exported_articles():
         ExportedArticle.created_at >= start_at,
     )
     if keyword:
-        query = query.filter(ExportedArticle.title.ilike(f'%{keyword}%'))
+        from app.admin import _escape_ilike
+        query = query.filter(ExportedArticle.title.ilike(f'%{_escape_ilike(keyword)}%'))
 
     items = query.order_by(ExportedArticle.created_at.desc()).limit(200).all()
     return jsonify({

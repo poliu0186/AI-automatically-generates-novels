@@ -3,14 +3,15 @@ from flask import Flask, request, Response, render_template
 import dashscope
 import json
 import logging
+import os
 from http import HTTPStatus
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # API Configurations
-API_KEY_1 = 'xxxx'  # 通义千问 API Key
-API_KEY_2 = 'xxxx'  # 可以使用不同的 API Key
+API_KEY_1 = os.environ.get('DASHSCOPE_API_KEY', '')  # Set via environment variable
+API_KEY_2 = os.environ.get('DASHSCOPE_API_KEY_2', API_KEY_1)
 
 # 设置通义千问API密钥
 dashscope.api_key = API_KEY_1
@@ -123,4 +124,4 @@ def generate2():
     return Response(generate_stream(), mimetype='text/plain')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=60000, host="0.0.0.0")
+    app.run(debug=os.environ.get('FLASK_DEBUG', '0').lower() in ('1', 'true'), port=60000, host="0.0.0.0")

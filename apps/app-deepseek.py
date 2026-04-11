@@ -2,13 +2,14 @@ from flask import Flask, request, Response, render_template
 import requests
 import json
 import logging
+import os
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # API Configurations
-API_ENDPOINT = 'https://api.deepseek.com/v1/chat/completions'
-API_KEY = 'sk-xxxxx'
+API_ENDPOINT = os.environ.get('DEEPSEEK_API_ENDPOINT', 'https://api.deepseek.com/v1/chat/completions')
+API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')  # Set via environment variable
 
 def create_headers():
     return {
@@ -135,4 +136,4 @@ def generate2():
     return Response(generate_stream(), mimetype='text/plain')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=60001, host="0.0.0.0")
+    app.run(debug=os.environ.get('FLASK_DEBUG', '0').lower() in ('1', 'true'), port=60001, host="0.0.0.0")

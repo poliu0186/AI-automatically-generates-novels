@@ -2,6 +2,7 @@ from flask import Flask, request, Response, render_template
 import requests
 import json
 import logging
+import os
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -93,4 +94,4 @@ def generate2():
     return Response(generate_stream(), mimetype='text/plain')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=60000, host="0.0.0.0")
+    app.run(debug=os.environ.get('FLASK_DEBUG', '0').lower() in ('1', 'true'), port=60000, host="0.0.0.0")

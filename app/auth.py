@@ -20,8 +20,25 @@ auth_bp = Blueprint('auth', __name__)
 ADMIN_LOGIN_OTP_SESSION_KEY = 'admin_login_otp_payload'
 
 
+def _is_safe_redirect_url(target):
+    if not target:
+        return False
+    from urllib.parse import urlparse
+    parsed = urlparse(target)
+    # Only allow relative URLs (no scheme/netloc) or same-host URLs
+    if parsed.scheme and parsed.scheme not in ('http', 'https'):
+        return False
+    if parsed.netloc:
+        from flask import request as _req
+        server_host = (_req.host or '').split(':')[0].lower()
+        target_host = parsed.netloc.split(':')[0].lower()
+        if target_host != server_host:
+            return False
+    return True
+
+
 def _post_login_redirect(user, next_url=None):
-    if next_url:
+    if next_url and _is_safe_redirect_url(next_url):
         return redirect(next_url)
     if getattr(user, 'is_admin', False):
         return redirect(url_for('admin.admin_dashboard'))
@@ -259,7 +276,7 @@ def clear_user_login_failures(user):
 
 def generate_captcha_code(length=5):
     alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
-    return ''.join(random.choice(alphabet) for _ in range(max(4, length)))
+    return ''.join(secrets.choice(alphabet) for _ in range(max(4, length)))
 
 
 def build_captcha_svg(code):

@@ -22,6 +22,15 @@ from app.workspace_nav import (
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 
+def _escape_ilike(value):
+    """Escape special ILIKE wildcard characters in user input."""
+    text = str(value or '')
+    text = text.replace('\\', '\\\\')
+    text = text.replace('%', '\\%')
+    text = text.replace('_', '\\_')
+    return text
+
+
 PERMISSION_LABELS = {
     'can_manage_users': '用户管理',
     'can_manage_pricing': '费率与活动配置',
@@ -182,41 +191,45 @@ def admin_dashboard():
 
     orders_query = RechargeOrder.query.outerjoin(User, RechargeOrder.user_id == User.id)
     if order_query_text:
+        _oq = _escape_ilike(order_query_text)
         orders_query = orders_query.filter(or_(
-            RechargeOrder.order_no.ilike(f'%{order_query_text}%'),
-            RechargeOrder.status.ilike(f'%{order_query_text}%'),
-            RechargeOrder.channel.ilike(f'%{order_query_text}%'),
-            User.username.ilike(f'%{order_query_text}%')
+            RechargeOrder.order_no.ilike(f'%{_oq}%'),
+            RechargeOrder.status.ilike(f'%{_oq}%'),
+            RechargeOrder.channel.ilike(f'%{_oq}%'),
+            User.username.ilike(f'%{_oq}%')
         ))
     orders_pagination = _paginate_query(orders_query.order_by(RechargeOrder.created_at.desc()), _safe_page('order_page'))
 
     ledger_query = WalletLedger.query.outerjoin(User, WalletLedger.user_id == User.id)
     if ledger_query_text:
+        _lq = _escape_ilike(ledger_query_text)
         ledger_query = ledger_query.filter(or_(
-            WalletLedger.change_type.ilike(f'%{ledger_query_text}%'),
-            WalletLedger.related_order_no.ilike(f'%{ledger_query_text}%'),
-            WalletLedger.remark.ilike(f'%{ledger_query_text}%'),
-            User.username.ilike(f'%{ledger_query_text}%')
+            WalletLedger.change_type.ilike(f'%{_lq}%'),
+            WalletLedger.related_order_no.ilike(f'%{_lq}%'),
+            WalletLedger.remark.ilike(f'%{_lq}%'),
+            User.username.ilike(f'%{_lq}%')
         ))
     ledger_pagination = _paginate_query(ledger_query.order_by(WalletLedger.created_at.desc()), _safe_page('ledger_page'))
 
     user_logs_query = UserActionLog.query.outerjoin(User, UserActionLog.user_id == User.id)
     if user_log_query_text:
+        _ulq = _escape_ilike(user_log_query_text)
         user_logs_query = user_logs_query.filter(or_(
-            UserActionLog.action.ilike(f'%{user_log_query_text}%'),
-            UserActionLog.detail.ilike(f'%{user_log_query_text}%'),
-            UserActionLog.ip.ilike(f'%{user_log_query_text}%'),
-            User.username.ilike(f'%{user_log_query_text}%')
+            UserActionLog.action.ilike(f'%{_ulq}%'),
+            UserActionLog.detail.ilike(f'%{_ulq}%'),
+            UserActionLog.ip.ilike(f'%{_ulq}%'),
+            User.username.ilike(f'%{_ulq}%')
         ))
     user_logs_pagination = _paginate_query(user_logs_query.order_by(UserActionLog.created_at.desc()), _safe_page('user_log_page'))
 
     user_messages_query = UserMessage.query.outerjoin(User, UserMessage.user_id == User.id)
     if user_message_query_text:
+        _mq = _escape_ilike(user_message_query_text)
         user_messages_query = user_messages_query.filter(or_(
-            User.username.ilike(f'%{user_message_query_text}%'),
-            UserMessage.subject.ilike(f'%{user_message_query_text}%'),
-            UserMessage.content.ilike(f'%{user_message_query_text}%'),
-            UserMessage.admin_reply.ilike(f'%{user_message_query_text}%')
+            User.username.ilike(f'%{_mq}%'),
+            UserMessage.subject.ilike(f'%{_mq}%'),
+            UserMessage.content.ilike(f'%{_mq}%'),
+            UserMessage.admin_reply.ilike(f'%{_mq}%')
         ))
     user_messages_pagination = _paginate_query(user_messages_query.order_by(UserMessage.created_at.desc()), _safe_page('message_page'))
 

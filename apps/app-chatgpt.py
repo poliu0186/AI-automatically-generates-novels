@@ -2,13 +2,14 @@ from flask import Flask, request, Response, render_template
 import openai
 import json
 import logging
+import os
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # OpenAI API configuration
-openai.api_key = "your-api-key-here"  # Consider using environment variables
-OPENAI_MODEL = "gpt-3.5-turbo"  # Or "gpt-4" depending on your needs
+openai.api_key = os.environ.get("OPENAI_API_KEY", "")  # Set via environment variable
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
 
 @app.route('/')
 def index():
@@ -18,7 +19,7 @@ def index():
 def generate():
     data = request.json
     prompt = data.get('prompt', '')
-    api_key = data.get('api_key', openai.api_key)  # Allow API key override in request
+    api_key = openai.api_key  # API key must be set server-side, not from client
     model = data.get('model', OPENAI_MODEL)
     
     app.logger.debug(f"Received prompt: {prompt}")
@@ -67,4 +68,4 @@ def generate():
     return Response(generate_stream(), mimetype='application/x-ndjson')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=20000, host="0.0.0.0")
+    app.run(debug=os.environ.get('FLASK_DEBUG', '0').lower() in ('1', 'true'), port=20000, host="0.0.0.0")
