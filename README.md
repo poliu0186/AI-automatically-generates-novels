@@ -137,6 +137,120 @@ MODEL_NAME_1=glm-4.5-air
 
 前提：目标平台必须提供 OpenAI 兼容接口，并支持 `chat.completions` 流式输出；如果不是兼容接口，才需要额外改代码做适配。
 
+## 环境变量驱动的模型选择（`MODEL_NAME_1` 与 `MODEL_NAME_2`）
+
+本项目通过 `.env` 环境变量 `MODEL_NAME_1` 和 `MODEL_NAME_2` 来控制 AI 生成所使用的模型，无需修改任何 Python 代码即可切换不同的大模型。
+
+### 变量说明
+
+| 环境变量 | 对应接口 | 用途 | 默认值 |
+|---|---|---|---|
+| `MODEL_NAME_1` | `/gen` | **主力生成模型** — 用于大纲生成、章节规划、正文撰写等核心创作任务 | `glm-4.5-air` |
+| `MODEL_NAME_2` | `/gen2` | **辅助模型** — 用于 AI 批量自我迭代（探索性功能）和拆书等辅助任务 | `glm-4.5-air` |
+
+### 配置方法
+
+1. 复制 `.env.example` 为 `.env`（如果尚未创建）：
+
+```bash
+cp .env.example .env
+```
+
+2. 在 `.env` 文件中设置模型名称：
+
+```env
+# 主力生成模型（/gen 接口）
+# 推荐使用效果较好的模型，直接影响大纲、章节、正文的生成质量
+MODEL_NAME_1=glm-4.5-air
+
+# 辅助模型（/gen2 接口）
+# 可使用低成本模型，主要用于 AI 自我迭代和拆书等批量任务
+MODEL_NAME_2=glm-4.5-air
+```
+
+3. 同时确保对应的 API 端点和密钥已正确配置：
+
+```env
+# /gen 接口配置
+API_ENDPOINT_1=https://open.bigmodel.cn/api/paas/v4/
+API_KEY_1=your_api_key_here
+MODEL_NAME_1=glm-4.5-air
+
+# /gen2 接口配置
+API_ENDPOINT_2=https://open.bigmodel.cn/api/paas/v4/
+API_KEY_2=your_api_key_here
+MODEL_NAME_2=glm-4.5-air
+```
+
+4. 重启应用使配置生效：
+
+```bash
+# 开发模式
+python app.py
+
+# 生产模式（使用 Gunicorn）
+sudo systemctl restart ai-novel
+```
+
+### 对模型生成的影响
+
+#### `MODEL_NAME_1`（主力模型 — `/gen` 接口）
+
+该模型直接决定小说核心创作环节的输出质量，包括：
+
+- **大纲生成**：故事结构、核心冲突、转折点的设计质量
+- **章节规划**：章节细纲的逻辑性、情节密度和节奏控制
+- **正文撰写**：文笔风格、对话质量、场景描写的细腻程度
+- **右键润色**：对选中文本的优化、扩写、去 AI 味等操作效果
+
+> **建议**：`MODEL_NAME_1` 应选择生成效果最好的模型，因为它直接影响最终小说的品质。
+
+#### `MODEL_NAME_2`（辅助模型 — `/gen2` 接口）
+
+该模型用于辅助性和批量性任务，对成本敏感度更高：
+
+- **AI 自我迭代**：根据评分结果对内容进行批量自动优化（探索性功能）
+- **拆书功能**：智能分析和拆解现有书籍的结构
+- **批量处理**：涉及大量 token 消耗的重复性任务
+
+> **建议**：`MODEL_NAME_2` 可选择性价比更高的模型以降低批量任务的 API 调用成本，同时仍保持可接受的输出质量。
+
+### 常见模型配置示例
+
+```env
+# 方案一：智谱 GLM（默认）
+MODEL_NAME_1=glm-4.5-air
+MODEL_NAME_2=glm-4.5-air
+
+# 方案二：高质量主力 + 低成本辅助
+MODEL_NAME_1=glm-4-plus
+MODEL_NAME_2=glm-4.5-air
+
+# 方案三：DeepSeek（需配合修改 API_ENDPOINT）
+MODEL_NAME_1=deepseek-chat
+MODEL_NAME_2=deepseek-chat
+
+# 方案四：阿里通义千问（百炼 OpenAI 兼容）
+MODEL_NAME_1=qwen-plus
+MODEL_NAME_2=qwen-turbo
+
+# 方案五：混合搭配不同厂商模型
+# /gen 使用 DeepSeek 高质量模型
+API_ENDPOINT_1=https://api.deepseek.com
+MODEL_NAME_1=deepseek-chat
+# /gen2 使用通义千问低成本模型
+API_ENDPOINT_2=https://dashscope.aliyuncs.com/compatible-mode/v1
+MODEL_NAME_2=qwen-turbo
+```
+
+### 注意事项
+
+- 两个模型变量相互独立，可以配置为相同或不同的模型。
+- 修改模型名称时，请确保 `API_ENDPOINT` 和 `API_KEY` 与目标模型匹配。
+- 如果未设置 `MODEL_NAME_1` 或 `MODEL_NAME_2`，系统默认使用 `glm-4.5-air`。
+- 所有模型均需支持 OpenAI 兼容的 `chat.completions` 流式接口。
+- 配合多 Key 自动路由功能，还可以为同一模型配置多个 API Key 实现负载均衡与故障切换（详见上方「大模型多 Key 自动路由」章节）。
+
 
 
 
