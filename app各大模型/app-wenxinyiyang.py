@@ -2,6 +2,7 @@ from flask import Flask, request, Response, render_template
 import requests
 import json
 import logging
+import os
 from typing import Generator
 import time
 
@@ -9,8 +10,8 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # 文心一言API配置
-API_KEY = "xxxx"  # 替换为您的 API Key
-SECRET_KEY = "xxxx"  # 替换为您的 Secret Key
+API_KEY = os.environ.get('WENXIN_API_KEY', '')  # Set via environment variable
+SECRET_KEY = os.environ.get('WENXIN_SECRET_KEY', '')  # Set via environment variable
 
 def get_access_token() -> str:
     """
@@ -105,4 +106,4 @@ def generate2():
     return generate()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=60000, host="0.0.0.0")
+    app.run(debug=os.environ.get('FLASK_DEBUG', '0').lower() in ('1', 'true'), port=60000, host="0.0.0.0")

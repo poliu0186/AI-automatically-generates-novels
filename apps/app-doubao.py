@@ -1,15 +1,16 @@
 from flask import Flask, request, Response, render_template
 from openai import OpenAI
 import logging
+import os
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # API Configurations
-API_ENDPOINT_1 = 'https://api.doubao.com/v1'  # 豆包API端点
-API_KEY_1 = 'xxxx'  # 豆包API密钥
-API_ENDPOINT_2 = API_ENDPOINT_1 
-API_KEY_2 = 'xxxx'  # 可以使用不同的API密钥
+API_ENDPOINT_1 = os.environ.get('DOUBAO_API_ENDPOINT', 'https://api.doubao.com/v1')
+API_KEY_1 = os.environ.get('DOUBAO_API_KEY', '')  # Set via environment variable
+API_ENDPOINT_2 = os.environ.get('DOUBAO_API_ENDPOINT_2', API_ENDPOINT_1)
+API_KEY_2 = os.environ.get('DOUBAO_API_KEY_2', API_KEY_1)
 
 # Initialize OpenAI-compatible clients
 client1 = OpenAI(
@@ -105,4 +106,4 @@ def generate2():
     return Response(generate_stream(), mimetype='text/plain')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=60000, host="0.0.0.0")
+    app.run(debug=os.environ.get('FLASK_DEBUG', '0').lower() in ('1', 'true'), port=60000, host="0.0.0.0")
