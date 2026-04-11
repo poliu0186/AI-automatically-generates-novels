@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, request, Response, render_template
 import requests
 import json
@@ -7,11 +9,11 @@ from typing import Generator
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-# API Configurations
-API_ENDPOINT_1 = 'https://api.anthropic.com/v1/messages'
-API_KEY_1 = 'xxxx'  # Replace with your Claude API key
-API_ENDPOINT_2 = API_ENDPOINT_1
-API_KEY_2 = API_KEY_1
+# API Configurations — set via environment variables, never hardcode keys
+API_ENDPOINT_1 = os.environ.get('CLAUDE_API_ENDPOINT_1', 'https://api.anthropic.com/v1/messages')
+API_KEY_1 = os.environ.get('CLAUDE_API_KEY_1', '')
+API_ENDPOINT_2 = os.environ.get('CLAUDE_API_ENDPOINT_2', '') or API_ENDPOINT_1
+API_KEY_2 = os.environ.get('CLAUDE_API_KEY_2', '') or API_KEY_1
 
 def create_headers(api_key: str) -> dict:
     return {
@@ -143,4 +145,4 @@ def generate2():
     return Response(generate_stream(), mimetype='text/plain')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=60000, host="0.0.0.0")
+    app.run(debug=os.environ.get('FLASK_DEBUG', '0') == '1', port=60000, host="0.0.0.0")
