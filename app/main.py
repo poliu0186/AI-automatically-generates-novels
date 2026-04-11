@@ -131,5 +131,6 @@ def media_jpg(filename):
 
 
 @main_bp.route('/test')
+@login_required
 def test():
     return render_template('test_download.html')

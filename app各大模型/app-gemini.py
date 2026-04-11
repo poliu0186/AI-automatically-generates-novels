@@ -14,10 +14,11 @@ from collections import deque
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:7890'
-os.environ['HTTP_PROXY'] = 'http://127.0.0.1:7890'
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# Proxy settings — only apply if explicitly configured via environment
+if os.environ.get('HTTPS_PROXY'):
+    pass  # already set in environment
+if os.environ.get('HTTP_PROXY'):
+    pass  # already set in environment
 
 class TokenStats:
     def __init__(self):
@@ -103,7 +104,7 @@ def trigger_smart_placement():
         for url in us_urls:
             try:
                 start_time = time.time()
-                response = requests.get(url, timeout=5, verify=False)
+                response = requests.get(url, timeout=5)
                 response_time = (time.time() - start_time) * 1000
                 
                 if response.status_code == 200:
@@ -123,7 +124,7 @@ def trigger_smart_placement():
         app.logger.error(f"Error in trigger_smart_placement: {str(e)}")
         return False
 
-GOOGLE_API_KEY = "YOUR-API-KEY"
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', '')
 genai.configure(api_key=GOOGLE_API_KEY)
 
 def init_api():
@@ -296,7 +297,7 @@ def api_info():
     except Exception as e:
         error_info = {
             "error": str(e),
-            "traceback": traceback.format_exc()
+            "traceback": "Internal error (details logged server-side)"
         }
         return Response(
             json.dumps(error_info, indent=2, ensure_ascii=False),
@@ -310,6 +311,6 @@ def api_dashboard():
 
 if __name__ == '__main__':
     if init_api():
-        app.run(debug=True, port=60000, host="0.0.0.0")
+        app.run(debug=os.environ.get('FLASK_DEBUG', '0') == '1', port=60000, host="0.0.0.0")
     else:
-        app.logger.error("Failed to initialize API, service will not start") 
+        app.logger.error("Failed to initialize API, service will not start")  

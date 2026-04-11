@@ -20,8 +20,20 @@ auth_bp = Blueprint('auth', __name__)
 ADMIN_LOGIN_OTP_SESSION_KEY = 'admin_login_otp_payload'
 
 
+def _is_safe_redirect_url(target):
+    """Reject absolute URLs and open redirects; allow only relative paths on the same host."""
+    if not target:
+        return False
+    from urllib.parse import urlparse
+    parsed = urlparse(target)
+    # Only allow relative paths (no scheme, no netloc)
+    if parsed.scheme or parsed.netloc:
+        return False
+    return True
+
+
 def _post_login_redirect(user, next_url=None):
-    if next_url:
+    if next_url and _is_safe_redirect_url(next_url):
         return redirect(next_url)
     if getattr(user, 'is_admin', False):
         return redirect(url_for('admin.admin_dashboard'))
@@ -259,7 +271,7 @@ def clear_user_login_failures(user):
 
 def generate_captcha_code(length=5):
     alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
-    return ''.join(random.choice(alphabet) for _ in range(max(4, length)))
+    return ''.join(secrets.choice(alphabet) for _ in range(max(4, length)))
 
 
 def build_captcha_svg(code):

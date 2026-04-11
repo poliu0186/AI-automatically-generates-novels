@@ -107,7 +107,17 @@ def create_app():
         static_folder=str(basedir / 'static'),
         static_url_path='/static'
     )
-    app.secret_key = resolve_env_value('SECRET_KEY', 'change-me-to-a-secure-key')
+    _secret_key = resolve_env_value('SECRET_KEY', '')
+    if not _secret_key or _secret_key == 'change-me-to-a-secure-key':
+        import warnings
+        warnings.warn(
+            'SECRET_KEY is not set or still uses the insecure default. '
+            'Set a strong, random SECRET_KEY environment variable before deploying to production.',
+            stacklevel=2,
+        )
+        # Fall back so the app can still start in development
+        _secret_key = _secret_key or 'change-me-to-a-secure-key'
+    app.secret_key = _secret_key
     app.config['ENVIRONMENT'] = resolve_env_value('ENVIRONMENT', 'production')
     app.config['FORCE_HTTPS'] = resolve_env_bool('FORCE_HTTPS', True)
     app.config['TRUST_PROXY'] = resolve_env_bool('TRUST_PROXY', True)

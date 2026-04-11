@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, request, Response, render_template
 import openai
 import json
@@ -6,9 +8,9 @@ import logging
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-# OpenAI API configuration
-openai.api_key = "your-api-key-here"  # Consider using environment variables
-OPENAI_MODEL = "gpt-3.5-turbo"  # Or "gpt-4" depending on your needs
+# OpenAI API configuration — set via environment variables, never hardcode keys
+openai.api_key = os.environ.get('OPENAI_API_KEY', '')
+OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-3.5-turbo')
 
 @app.route('/')
 def index():
@@ -18,7 +20,6 @@ def index():
 def generate():
     data = request.json
     prompt = data.get('prompt', '')
-    api_key = data.get('api_key', openai.api_key)  # Allow API key override in request
     model = data.get('model', OPENAI_MODEL)
     
     app.logger.debug(f"Received prompt: {prompt}")
@@ -33,7 +34,6 @@ def generate():
                 model=model,
                 messages=messages,
                 stream=True,
-                api_key=api_key
             )
 
             app.logger.debug("Started streaming from OpenAI")
@@ -67,4 +67,4 @@ def generate():
     return Response(generate_stream(), mimetype='application/x-ndjson')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=20000, host="0.0.0.0")
+    app.run(debug=os.environ.get('FLASK_DEBUG', '0') == '1', port=20000, host="0.0.0.0")

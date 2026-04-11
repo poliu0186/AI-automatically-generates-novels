@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, request, Response, render_template
 import requests
 import json
@@ -8,9 +10,9 @@ import time
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-# 文心一言API配置
-API_KEY = "xxxx"  # 替换为您的 API Key
-SECRET_KEY = "xxxx"  # 替换为您的 Secret Key
+# 文心一言API配置 — set via environment variables, never hardcode keys
+API_KEY = os.environ.get('WENXIN_API_KEY', '')
+SECRET_KEY = os.environ.get('WENXIN_SECRET_KEY', '')
 
 def get_access_token() -> str:
     """
@@ -105,4 +107,4 @@ def generate2():
     return generate()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=60000, host="0.0.0.0")
+    app.run(debug=os.environ.get('FLASK_DEBUG', '0') == '1', port=60000, host="0.0.0.0")
