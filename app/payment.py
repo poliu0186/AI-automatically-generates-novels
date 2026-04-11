@@ -296,7 +296,8 @@ def create_alipay_order():
         return jsonify({'error': '当前支付通道已关闭在线支付，请联系管理员。'}), 400
 
     if not _alipay_ready():
-        return jsonify({'error': '支付宝支付配置未完成，请先填写 .env 中的支付参数并安装依赖。'}), 400
+        current_app.logger.warning('支付宝支付配置未就绪，缺少必要的环境变量或 SDK 依赖')
+        return jsonify({'error': '支付宝支付配置未完成，请联系管理员。'}), 400
 
     data = request.get_json(silent=True) or request.form.to_dict()
     try:
@@ -316,9 +317,9 @@ def create_alipay_order():
         pay_url = _build_alipay_page_url(order)
         log_user_action(current_user.id, 'create_recharge_order', f'order_no={order.order_no}, amount={amount_yuan}')
         db.session.commit()
-    except Exception as error:
+    except Exception:
         db.session.rollback()
-        current_app.logger.exception('创建支付宝订单失败')
+        current_app.logger.exception('创建支付宝订单失败: user_id=%s amount=%s', current_user.id, data.get('amount_yuan'))
         return jsonify({'error': '创建支付订单失败，请稍后重试或联系管理员。'}), 500
 
     return jsonify({
@@ -341,14 +342,14 @@ def alipay_notify():
 
     try:
         if not _verify_notify_signature(form_data):
-            current_app.logger.error('支付宝通知验签失败: %s', form_data)
+            current_app.logger.error('支付宝通知验签失败: out_trade_no=%s app_id=%s', form_data.get('out_trade_no'), form_data.get('app_id'))
             return 'failure'
 
         order_no = form_data.get('out_trade_no', '').strip()
         trade_status = (form_data.get('trade_status') or '').strip()
         app_id = (form_data.get('app_id') or '').strip()
         if not order_no or not trade_status:
-            current_app.logger.error('支付宝通知缺少关键字段: %s', form_data)
+            current_app.logger.error('支付宝通知缺少关键字段: out_trade_no=%s trade_status=%s', form_data.get('out_trade_no'), form_data.get('trade_status'))
             return 'failure'
 
         configured_app_id = (current_app.config.get('ALIPAY_APP_ID') or '').strip()
@@ -420,9 +421,10 @@ def dev_mark_recharge_paid(order_no):
         )
         log_user_action(current_user.id, 'recharge_paid', f'order_no={order.order_no}, amount={order.amount_yuan}, coins={order.coins}')
         db.session.commit()
-    except Exception as error:
+    except Exception:
         db.session.rollback()
-        return jsonify({'error': f'开发充值入账失败：{error}'}), 500
+        current_app.logger.exception('开发充值入账失败: order_no=%s user_id=%s', order_no, current_user.id)
+        return jsonify({'error': '开发充值入账失败，请稍后重试。'}), 500
 
     return jsonify({'ok': True, 'order_no': order.order_no, 'status': order.status, 'coins': order.coins})
 
@@ -463,10 +465,10 @@ def wallet_feature_charge():
     except InsufficientBalanceError as error:
         db.session.rollback()
         return jsonify({'error': str(error)}), 402
-    except Exception as error:
+    except Exception:
         db.session.rollback()
         current_app.logger.exception('功能扣费失败: feature=%s user_id=%s', feature_code, current_user.id)
-        return jsonify({'error': f'功能扣费失败：{error}'}), 500
+        return jsonify({'error': '功能扣费失败，请稍后重试或联系管理员。'}), 500
 
     return jsonify({
         'ok': True,
